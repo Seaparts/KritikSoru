@@ -1,0 +1,165 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a registered user of the application.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique identifier for the user, matching Firebase Auth UID."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's first name."
+        },
+        "surname": {
+          "type": "string",
+          "description": "The user's last name."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "admin"],
+          "description": "The user's role for RBAC."
+        },
+        "tokens": {
+          "type": "number",
+          "description": "The number of tokens the user has available for asking questions."
+        },
+        "package": {
+          "type": "string",
+          "enum": ["free", "mini", "net", "focus", "legend"],
+          "description": "The subscription package the user is currently on."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the user account was created."
+        },
+        "phone": {
+          "type": "string",
+          "description": "The user's phone number."
+        },
+        "address": {
+          "type": "string",
+          "description": "The user's address."
+        },
+        "city": {
+          "type": "string",
+          "description": "The user's city."
+        },
+        "district": {
+          "type": "string",
+          "description": "The user's district."
+        },
+        "tcNo": {
+          "type": "string",
+          "description": "The user's TC Kimlik No."
+        },
+        "targetExam": {
+          "type": "string",
+          "description": "The exam the user is preparing for."
+        }
+      },
+      "required": ["uid", "email", "name", "surname", "role", "tokens", "package", "createdAt"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "Represents a question asked by a user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The UID of the user who asked the question."
+        },
+        "imageUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "The URL of the uploaded question image."
+        },
+        "questionText": {
+          "type": "string",
+          "description": "The text extracted from the image or typed by the user."
+        },
+        "answerText": {
+          "type": "string",
+          "description": "The answer provided by the AI model."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "solved", "error"],
+          "description": "The current status of the question."
+        },
+        "model": {
+          "type": "string",
+          "description": "The AI model used to solve the question."
+        },
+        "cost": {
+          "type": "number",
+          "description": "The cost of solving the question in tokens."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the question was asked."
+        }
+      },
+      "required": ["uid", "imageUrl", "status", "createdAt"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Represents a payment made by a user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The UID of the user who made the payment."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount paid."
+        },
+        "provider": {
+          "type": "string",
+          "description": "The payment provider (e.g., iyzico)."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["success", "failed", "pending"],
+          "description": "The status of the payment."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the payment was initiated."
+        }
+      },
+      "required": ["uid", "amount", "provider", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "Stores user profiles. Document ID must match the user's Auth UID."
+    },
+    "/questions/{questionId}": {
+      "schema": {
+        "$ref": "#/entities/Question"
+      },
+      "description": "Stores questions asked by users."
+    },
+    "/payments/{paymentId}": {
+      "schema": {
+        "$ref": "#/entities/Payment"
+      },
+      "description": "Stores payment records."
+    }
+  }
+}

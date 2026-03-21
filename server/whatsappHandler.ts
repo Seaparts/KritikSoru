@@ -1,0 +1,412 @@
+import { Request, Response } from 'express';
+import OpenAI from 'openai';
+import { db, storage } from './firebaseAdmin';
+
+// Initialize OpenAI
+let openai: OpenAI | null = null;
+function getOpenAI() {
+  if (!openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      console.warn("OPENAI_API_KEY is missing. Using mock responses for now.");
+      return null;
+    }
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openai;
+}
+
+// ============================================================================
+// WHATSAPP API HELPERS
+// ============================================================================
+async function sendWhatsAppMessage(to: string, text: string) {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  
+  if (!token || !phoneId) {
+    console.log(`[MOCK WHATSAPP] To: ${to} | Message: ${text}`);
+    return;
+  }
+
+  try {
+    await fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: to,
+        type: 'text',
+        text: { body: text }
+      })
+    });
+  } catch (error) {
+    console.error("Error sending WhatsApp message:", error);
+  }
+}
+
+async function sendWhatsAppImage(to: string, imageUrl: string) {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  
+  if (!token || !phoneId) {
+    console.log(`[MOCK WHATSAPP] To: ${to} | Image URL: ${imageUrl}`);
+    return;
+  }
+
+  try {
+    await fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: to,
+        type: 'image',
+        image: { link: imageUrl }
+      })
+    });
+  } catch (error) {
+    console.error("Error sending WhatsApp image:", error);
+  }
+}
+
+async function extractTextFromWhatsAppImage(imageId: string): Promise<string> {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!token) {
+    console.error("WHATSAPP_ACCESS_TOKEN is missing.");
+    return "";
+  }
+
+  try {
+    // 1. Get Image URL from WhatsApp API
+    const urlResponse = await fetch(`https://graph.facebook.com/v17.0/${imageId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const urlData = await urlResponse.json();
+    
+    if (!urlData.url) {
+      console.error("Failed to get image URL from WhatsApp:", urlData);
+      return "";
+    }
+
+    // 2. Download the image data
+    const imageResponse = await fetch(urlData.url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Image = buffer.toString('base64');
+    const mimeType = urlData.mime_type || 'image/jpeg';
+
+    // 3. Send to OpenAI GPT-4o Vision
+    const ai = getOpenAI();
+    if (!ai) return "OpenAI API key missing.";
+
+    const aiResponse = await ai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { 
+              type: "text", 
+              text: "Bu görseldeki metni, özellikle matematik, geometri veya fen sorularını eksiksiz ve doğru bir şekilde metne dök. Sadece okuduğun metni ver, ekstra yorum yapma." 
+            },
+            { 
+              type: "image_url", 
+              image_url: { url: `data:${mimeType};base64,${base64Image}` } 
+            }
+          ]
+        }
+      ]
+    });
+
+    return aiResponse.choices[0].message.content || "";
+  } catch (error) {
+    console.error("Error extracting text from image:", error);
+    return "";
+  }
+}
+
+// ============================================================================
+// OPENAI LOGIC
+// ============================================================================
+async function analyzeQuestion(text: string): Promise<{ isQuestion: boolean, difficulty: number }> {
+  const ai = getOpenAI();
+  if (!ai) return { isQuestion: true, difficulty: 2 };
+
+  try {
+    const response = await ai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `Sen bir eğitim asistanısın. Verilen metnin bir TYT, AYT veya LGS sınav sorusu olup olmadığını kontrol et. 
+          Eğer soru ise zorluk seviyesini 1 ile 4 arasında belirle.
+          1: Kolay (tek işlem, basit bilgi, 1 adım çözümlü sorular)
+          2: Orta (2-3 işlemli, temel yorum soruları)
+          3: Zor (çok adımlı işlem, dikkat gerektiren mantık soruları)
+          4: Çok Zor (uzun mantık zinciri, sınavın ayırt edici soruları)
+          Sadece şu JSON formatında yanıt ver: {"isQuestion": true/false, "difficulty": 1/2/3/4}`
+        },
+        { role: "user", content: text }
+      ],
+      response_format: { type: "json_object" }
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || "{}");
+    return {
+      isQuestion: result.isQuestion || false,
+      difficulty: result.difficulty || 1
+    };
+  } catch (error) {
+    console.error("Error analyzing question:", error);
+    return { isQuestion: false, difficulty: 1 };
+  }
+}
+
+async function solveQuestion(text: string, difficulty: number): Promise<string> {
+  const ai = getOpenAI();
+  if (!ai) return "Bu sorunun çözümü: 2x = 10, x = 5. (Mock Çözüm)";
+
+  let modelToUse = "gpt-4o-mini";
+  if (difficulty === 1) modelToUse = "gpt-4o-mini";
+  else if (difficulty === 2) modelToUse = "gpt-4o";
+  else if (difficulty === 3) modelToUse = "gpt-4.1";
+  else if (difficulty >= 4) modelToUse = "gpt-5"; // Handling 4 or 5 as gpt-5 based on user prompt
+
+  try {
+    const response = await ai.chat.completions.create({
+      model: modelToUse,
+      messages: [
+        {
+          role: "system",
+          content: "Sen uzman bir öğretmensin. Öğrencinin gönderdiği soruyu adım adım, anlaşılır bir şekilde çöz."
+        },
+        { role: "user", content: text }
+      ]
+    });
+
+    return response.choices[0].message.content || "Çözüm üretilemedi.";
+  } catch (error) {
+    console.error(`Error solving question with model ${modelToUse}:`, error);
+    // Fallback to gpt-4o if the requested model doesn't exist yet (like gpt-4.1 or gpt-5)
+    try {
+      const fallbackResponse = await ai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "Sen uzman bir öğretmensin. Öğrencinin gönderdiği soruyu adım adım, anlaşılır bir şekilde çöz."
+          },
+          { role: "user", content: text }
+        ]
+      });
+      return fallbackResponse.choices[0].message.content || "Çözüm üretilemedi.";
+    } catch (fallbackError) {
+      return "Çözüm sırasında bir hata oluştu.";
+    }
+  }
+}
+
+async function generateAndUploadImage(solutionText: string): Promise<string> {
+  const ai = getOpenAI();
+  if (!ai) return "https://picsum.photos/seed/solution/800/600";
+
+  try {
+    // 1. Generate Image with DALL-E
+    const response = await ai.images.generate({
+      model: "dall-e-3",
+      prompt: `A clean, educational whiteboard showing the following step-by-step math/science solution clearly written in Turkish: "${solutionText.substring(0, 500)}..."`,
+      size: "1024x1024",
+      quality: "standard",
+      n: 1,
+    });
+
+    const imageUrl = response.data[0].url;
+    if (!imageUrl) return "https://picsum.photos/seed/error/800/600";
+
+    // 2. Upload to Firebase Storage
+    if (storage) {
+      try {
+        const imageResponse = await fetch(imageUrl);
+        const arrayBuffer = await imageResponse.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        const bucket = storage.bucket();
+        const fileName = `solutions/solution_${Date.now()}.png`;
+        const file = bucket.file(fileName);
+        
+        await file.save(buffer, {
+          metadata: { contentType: 'image/png' }
+        });
+        
+        // Get a signed URL valid for 7 days
+        const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+        
+        return signedUrl;
+      } catch (storageError) {
+        console.error("Firebase Storage upload failed, falling back to OpenAI URL:", storageError);
+        return imageUrl;
+      }
+    }
+
+    return imageUrl;
+  } catch (error) {
+    console.error("Error generating/uploading image:", error);
+    return "https://picsum.photos/seed/error/800/600";
+  }
+}
+
+// ============================================================================
+// WEBHOOK HANDLERS
+// ============================================================================
+
+export const verifyWhatsAppWebhook = (req: Request, res: Response) => {
+  const verify_token = process.env.WHATSAPP_VERIFY_TOKEN || "my_secure_token";
+  
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  console.log("--- Webhook Verification Request ---");
+  console.log("Mode:", mode);
+  console.log("Token received:", token);
+  console.log("Token expected:", verify_token);
+  console.log("Challenge:", challenge);
+
+  if (mode && token) {
+    if (mode === "subscribe" && token === verify_token) {
+      console.log("✅ Webhook verified successfully!");
+      res.status(200).type('text/plain').send(challenge);
+    } else {
+      console.error("❌ Webhook verification failed. Token mismatch.");
+      res.sendStatus(403);
+    }
+  } else {
+    console.error("❌ Webhook verification failed. Missing mode or token.");
+    res.sendStatus(400);
+  }
+};
+
+function normalizePhone(phone: string): string {
+  let cleaned = phone.replace(/\D/g, '');
+  if (cleaned.startsWith('90') && cleaned.length === 12) {
+    cleaned = '0' + cleaned.substring(2);
+  } else if (cleaned.length === 10) {
+    cleaned = '0' + cleaned;
+  }
+  return cleaned;
+}
+
+export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
+  try {
+    const body = req.body;
+
+    if (body.object === "whatsapp_business_account") {
+      const entry = body.entry?.[0];
+      const changes = entry?.changes?.[0];
+      const value = changes?.value;
+      const messages = value?.messages;
+
+      if (messages && messages.length > 0) {
+        const msg = messages[0];
+        const phone = msg.from; // e.g., "905551234567"
+        const normalizedPhone = normalizePhone(phone);
+
+        // 1. Whatsapp numarasından üyelik kontrolü.
+        if (!db) {
+          console.error("Firestore is not initialized.");
+          res.sendStatus(500);
+          return;
+        }
+
+        const phoneDoc = await db.collection('phone_numbers').doc(normalizedPhone).get();
+        
+        if (!phoneDoc.exists) {
+          await sendWhatsAppMessage(phone, "Üyeliğiniz bulunamadı. www.kritiksoru.com 'dan üye olabilirsiniz.");
+          res.sendStatus(200);
+          return;
+        }
+
+        const uid = phoneDoc.data()?.uid;
+        if (!uid) {
+          await sendWhatsAppMessage(phone, "Üyeliğiniz bulunamadı. www.kritiksoru.com 'dan üye olabilirsiniz.");
+          res.sendStatus(200);
+          return;
+        }
+
+        const userDoc = await db.collection('users').doc(uid).get();
+        const user = userDoc.data();
+
+        if (!user) {
+          await sendWhatsAppMessage(phone, "Üyeliğiniz bulunamadı. www.kritiksoru.com 'dan üye olabilirsiniz.");
+          res.sendStatus(200);
+          return;
+        }
+
+        // 2. Üyenin kontör miktarı kontrolü.
+        const tokens = user.tokens || 0;
+        if (tokens === 0) {
+          await sendWhatsAppMessage(phone, "Yeterli kontörünüz bulunmamaktadır. www.kritiksoru.com 'dan kontör yükleyebilirsiniz.");
+          res.sendStatus(200);
+          return;
+        }
+
+        // 3. Gelen mesajın metin mi görsel mi olduğunun kontrolü.
+        let questionText = "";
+
+        if (msg.type === "text") {
+          questionText = msg.text.body;
+        } else if (msg.type === "image") {
+          const imageId = msg.image.id;
+          // Görseli metne çevir
+          questionText = await extractTextFromWhatsAppImage(imageId);
+        } else {
+          res.sendStatus(200);
+          return;
+        }
+
+        // Metin bir tyt, ayt ve lgs sınav sorusu içeriyor mu GPT-4o mini ile kontrol et.
+        const analysis = await analyzeQuestion(questionText);
+        
+        if (!analysis.isQuestion) {
+          await sendWhatsAppMessage(phone, "Soru bulunamadı. www.kritiksoru.com");
+          res.sendStatus(200);
+          return;
+        }
+
+        // Soru çözüm promtunu çalıştır
+        const solutionText = await solveQuestion(questionText, analysis.difficulty);
+
+        // Soru çözümünü metnini görsel üretim promptunu kullanarak görsele dönüştür & Firebase Storage'a yükle
+        const solutionImageUrl = await generateAndUploadImage(solutionText);
+
+        // Görseli whatsapp'tan kullanıcıya gönder.
+        await sendWhatsAppImage(phone, solutionImageUrl);
+
+        // Üyenin kontöründen 1 adet azalt.
+        const updatedTokens = tokens - 1;
+        await db.collection('users').doc(uid).update({ tokens: updatedTokens });
+
+        // Kullanıcıya üyelik paketinin hangisi olduğu ve kalan kontör miktarını bir mesajla gönder.
+        const packageName = user.activePlan || "Standart Paket";
+        await sendWhatsAppMessage(phone, `Paketiniz: ${packageName}\nKalan kontör miktarınız: ${updatedTokens}`);
+      }
+      
+      res.sendStatus(200);
+    } else {
+      res.sendStatus(404);
+    }
+  } catch (error) {
+    console.error("Webhook processing error:", error);
+    res.sendStatus(500);
+  }
+};

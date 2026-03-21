@@ -1,0 +1,198 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches auth.uid)
+    // Fields:
+    //   - uid: string (required, immutable) - User's Auth UID
+    //   - email: string (required) - User's email
+    //   - name: string (required) - User's first name
+    //   - surname: string (required) - User's last name
+    //   - role: string (required, immutable for non-admins) - 'user' or 'admin'
+    //   - tokens: number (required, immutable for non-admins) - Available tokens
+    //   - package: string (required, immutable for non-admins) - Current package
+    //   - createdAt: string (required, immutable) - ISO 8601 date string
+    //
+    // Collection: questions
+    // Document ID: auto-generated
+    // Fields:
+    //   - uid: string (required, immutable) - User's Auth UID
+    //   - imageUrl: string (required) - URL of the image
+    //   - questionText: string (optional) - Extracted text
+    //   - answerText: string (optional) - AI answer
+    //   - status: string (required) - 'pending', 'solved', 'error'
+    //   - model: string (optional) - AI model used
+    //   - cost: number (optional) - Token cost
+    //   - createdAt: string (required, immutable) - ISO 8601 date string
+    //
+    // Collection: payments
+    // Document ID: auto-generated
+    // Fields:
+    //   - uid: string (required, immutable) - User's Auth UID
+    //   - amount: number (required) - Payment amount
+    //   - provider: string (required) - Payment provider
+    //   - status: string (required) - 'success', 'failed', 'pending'
+    //   - createdAt: string (required, immutable) - ISO 8601 date string
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "seaparts@gmail.com" && request.auth.token.email_verified == true)
+        );
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      let allowedFields = ['uid', 'email', 'name', 'surname', 'role', 'tokens', 'package', 'createdAt', 'phone', 'address', 'city', 'district', 'tcNo', 'targetExam'];
+      return hasOnlyAllowedFields(allowedFields) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
+             data.email is string && isValidEmail(data.email) && data.email.size() < 150 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 50 &&
+             data.surname is string && data.surname.size() > 0 && data.surname.size() < 50 &&
+             data.role in ['user', 'admin'] &&
+             data.tokens is number && data.tokens >= 0 &&
+             data.package in ['free', 'mini', 'net', 'focus', 'legend'] &&
+             isValidDateString(data.createdAt) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() < 20)) &&
+             (!('address' in data) || (data.address is string && data.address.size() < 500)) &&
+             (!('city' in data) || (data.city is string && data.city.size() < 50)) &&
+             (!('district' in data) || (data.district is string && data.district.size() < 50)) &&
+             (!('tcNo' in data) || (data.tcNo is string && data.tcNo.size() < 15)) &&
+             (!('targetExam' in data) || (data.targetExam is string && data.targetExam.size() < 50));
+    }
+
+    function isValidQuestion(data) {
+      let allowedFields = ['uid', 'imageUrl', 'questionText', 'answerText', 'status', 'model', 'cost', 'createdAt'];
+      return hasOnlyAllowedFields(allowedFields) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
+             data.imageUrl is string && isValidUrl(data.imageUrl) && data.imageUrl.size() < 1000 &&
+             (!('questionText' in data) || (data.questionText is string && data.questionText.size() < 5000)) &&
+             (!('answerText' in data) || (data.answerText is string && data.answerText.size() < 10000)) &&
+             data.status in ['pending', 'solved', 'error'] &&
+             (!('model' in data) || (data.model is string && data.model.size() < 50)) &&
+             (!('cost' in data) || (data.cost is number && data.cost >= 0)) &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidPayment(data) {
+      return hasOnlyAllowedFields(['uid', 'amount', 'provider', 'status', 'createdAt']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
+             data.amount is number && data.amount > 0 &&
+             data.provider is string && data.provider.size() > 0 && data.provider.size() < 50 &&
+             data.status in ['success', 'failed', 'pending'] &&
+             isValidDateString(data.createdAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) &&
+                       isValidUser(request.resource.data) &&
+                       uidUnchanged() &&
+                       // Only admins can create admin users, otherwise must be 'user'
+                       ((request.resource.data.role == 'user' && request.resource.data.tokens == 1 && request.resource.data.package == 'free') || isAdmin());
+      allow update: if (isOwner(userId) || isAdmin()) &&
+                       isValidUser(request.resource.data) &&
+                       uidNotModified() &&
+                       // Non-admins cannot change their role, tokens, package, or createdAt
+                       (isAdmin() || areImmutableFieldsUnchanged(['role', 'tokens', 'package', 'createdAt']));
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /phone_numbers/{phoneNumber} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update: if false; // Phone numbers cannot be overwritten by another user
+      allow delete: if isOwner(resource.data.uid) || isAdmin();
+    }
+
+    match /questions/{questionId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() &&
+                       isValidQuestion(request.resource.data) &&
+                       uidUnchanged();
+      allow update: if (isDocOwner() || isAdmin()) &&
+                       isValidQuestion(request.resource.data) &&
+                       uidNotModified() &&
+                       // Non-admins cannot change createdAt, cost, model, status, answerText
+                       (isAdmin() || areImmutableFieldsUnchanged(['createdAt', 'cost', 'model', 'status', 'answerText']));
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() &&
+                       isValidPayment(request.resource.data) &&
+                       uidUnchanged();
+      allow update: if isAdmin() &&
+                       isValidPayment(request.resource.data) &&
+                       uidNotModified();
+      allow delete: if isAdmin();
+    }
+
+  }
+}
