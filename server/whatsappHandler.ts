@@ -135,9 +135,9 @@ async function extractTextFromWhatsAppImage(imageId: string): Promise<string> {
 // ============================================================================
 // OPENAI LOGIC
 // ============================================================================
-async function analyzeQuestion(text: string): Promise<{ isQuestion: boolean, difficulty: number }> {
+async function analyzeQuestion(text: string): Promise<{ isQuestion: boolean, difficulty: number, examType: string, subject: string, topic: string }> {
   const ai = getOpenAI();
-  if (!ai) return { isQuestion: true, difficulty: 2 };
+  if (!ai) return { isQuestion: true, difficulty: 2, examType: "Genel", subject: "Soru", topic: "Genel" };
 
   try {
     const response = await ai.chat.completions.create({
@@ -151,7 +151,8 @@ async function analyzeQuestion(text: string): Promise<{ isQuestion: boolean, dif
           2: Orta (2-3 işlemli, temel yorum soruları)
           3: Zor (çok adımlı işlem, dikkat gerektiren mantık soruları)
           4: Çok Zor (uzun mantık zinciri, sınavın ayırt edici soruları)
-          Sadece şu JSON formatında yanıt ver: {"isQuestion": true/false, "difficulty": 1/2/3/4}`
+          Ayrıca sorunun hangi sınava (TYT, AYT, LGS, YKS, KPSS, ALES, DGS, Diğer), hangi derse (Matematik, Fizik, Kimya, Biyoloji, Türkçe, Tarih, Coğrafya, vb.) ve hangi konuya ait olduğunu belirle.
+          Sadece şu JSON formatında yanıt ver: {"isQuestion": true/false, "difficulty": 1/2/3/4, "examType": "Sınav Türü", "subject": "Ders Adı", "topic": "Konu Adı"}`
         },
         { role: "user", content: text }
       ],
@@ -161,11 +162,14 @@ async function analyzeQuestion(text: string): Promise<{ isQuestion: boolean, dif
     const result = JSON.parse(response.choices[0].message.content || "{}");
     return {
       isQuestion: result.isQuestion || false,
-      difficulty: result.difficulty || 1
+      difficulty: result.difficulty || 1,
+      examType: result.examType || "Genel",
+      subject: result.subject || "Soru",
+      topic: result.topic || "Genel"
     };
   } catch (error) {
     console.error("Error analyzing question:", error);
-    return { isQuestion: false, difficulty: 1 };
+    return { isQuestion: false, difficulty: 1, examType: "Genel", subject: "Soru", topic: "Genel" };
   }
 }
 
@@ -360,6 +364,23 @@ export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
           return;
         }
 
+        // 2.5 Günlük soru limiti kontrolü (Her kullanıcı için günde max 5 soru)
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD formatında bugünün tarihi
+        let dailyCount = user.dailyQuestionCount || 0;
+        const lastDate = user.lastQuestionDate || "";
+
+        // Eğer son soru gönderilen tarih bugün değilse, sayacı sıfırla
+        if (lastDate !== today) {
+          dailyCount = 0;
+        }
+
+        // Eğer günlük limit (5) dolduysa, mesaj gönder ve işlemi durdur
+        if (dailyCount >= 5) {
+          await sendWhatsAppMessage(phone, "Günlük soru kotasını doldurdun. Yarın görüşmek üzere! ");
+          res.sendStatus(200);
+          return;
+        }
+
         // 3. Gelen mesajın metin mi görsel mi olduğunun kontrolü.
         let questionText = "";
 
@@ -392,9 +413,28 @@ export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
         // Görseli whatsapp'tan kullanıcıya gönder.
         await sendWhatsAppImage(phone, solutionImageUrl);
 
-        // Üyenin kontöründen 1 adet azalt.
+        // Save the question to Firestore
+        await db.collection('questions').add({
+          uid: uid,
+          questionText: questionText,
+          answerText: solutionText,
+          imageUrl: solutionImageUrl,
+          status: 'solved',
+          model: 'gpt-4o',
+          cost: 1,
+          examType: analysis.examType,
+          subject: analysis.subject,
+          topic: analysis.topic,
+          createdAt: new Date().toISOString()
+        });
+
+        // Üyenin kontöründen 1 adet azalt ve günlük limiti güncelle.
         const updatedTokens = tokens - 1;
-        await db.collection('users').doc(uid).update({ tokens: updatedTokens });
+        await db.collection('users').doc(uid).update({ 
+          tokens: updatedTokens,
+          dailyQuestionCount: dailyCount + 1,
+          lastQuestionDate: today
+        });
 
         // Kullanıcıya üyelik paketinin hangisi olduğu ve kalan kontör miktarını bir mesajla gönder.
         const packageName = user.activePlan || "Standart Paket";

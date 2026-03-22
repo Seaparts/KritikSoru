@@ -104,7 +104,7 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      let allowedFields = ['uid', 'email', 'name', 'surname', 'role', 'tokens', 'package', 'createdAt', 'phone', 'address', 'city', 'district', 'tcNo', 'targetExam'];
+      let allowedFields = ['uid', 'email', 'name', 'surname', 'role', 'tokens', 'package', 'createdAt', 'phone', 'address', 'city', 'district', 'tcNo', 'targetExam', 'dailyQuestionCount', 'lastQuestionDate'];
       return hasOnlyAllowedFields(allowedFields) &&
              data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
              data.email is string && isValidEmail(data.email) && data.email.size() < 150 &&
@@ -119,11 +119,13 @@ service cloud.firestore {
              (!('city' in data) || (data.city is string && data.city.size() < 50)) &&
              (!('district' in data) || (data.district is string && data.district.size() < 50)) &&
              (!('tcNo' in data) || (data.tcNo is string && data.tcNo.size() < 15)) &&
-             (!('targetExam' in data) || (data.targetExam is string && data.targetExam.size() < 50));
+             (!('targetExam' in data) || (data.targetExam is string && data.targetExam.size() < 50)) &&
+             (!('dailyQuestionCount' in data) || (data.dailyQuestionCount is number && data.dailyQuestionCount >= 0)) &&
+             (!('lastQuestionDate' in data) || (data.lastQuestionDate is string && data.lastQuestionDate.size() <= 10));
     }
 
     function isValidQuestion(data) {
-      let allowedFields = ['uid', 'imageUrl', 'questionText', 'answerText', 'status', 'model', 'cost', 'createdAt'];
+      let allowedFields = ['uid', 'imageUrl', 'questionText', 'answerText', 'status', 'model', 'cost', 'createdAt', 'examType', 'subject', 'topic'];
       return hasOnlyAllowedFields(allowedFields) &&
              data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
              data.imageUrl is string && isValidUrl(data.imageUrl) && data.imageUrl.size() < 1000 &&
@@ -132,6 +134,9 @@ service cloud.firestore {
              data.status in ['pending', 'solved', 'error'] &&
              (!('model' in data) || (data.model is string && data.model.size() < 50)) &&
              (!('cost' in data) || (data.cost is number && data.cost >= 0)) &&
+             (!('examType' in data) || (data.examType is string && data.examType.size() < 50)) &&
+             (!('subject' in data) || (data.subject is string && data.subject.size() < 50)) &&
+             (!('topic' in data) || (data.topic is string && data.topic.size() < 100)) &&
              isValidDateString(data.createdAt);
     }
 
@@ -159,7 +164,7 @@ service cloud.firestore {
                        isValidUser(request.resource.data) &&
                        uidNotModified() &&
                        // Non-admins cannot change their role, tokens, package, or createdAt
-                       (isAdmin() || areImmutableFieldsUnchanged(['role', 'tokens', 'package', 'createdAt']));
+                       (isAdmin() || areImmutableFieldsUnchanged(['role', 'tokens', 'package', 'createdAt', 'dailyQuestionCount', 'lastQuestionDate']));
       allow delete: if isOwner(userId) || isAdmin();
     }
 

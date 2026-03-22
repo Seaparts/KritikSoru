@@ -8,19 +8,41 @@ let db: FirebaseFirestore.Firestore;
 let storage: any;
 
 try {
+  let config: any = {};
   const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
-  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  
+  if (fs.existsSync(configPath)) {
+    config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  } else {
+    console.warn("firebase-applet-config.json not found. Falling back to environment variables.");
+    config = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+      firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || "(default)"
+    };
+  }
 
   if (!getApps().length) {
-    // If you have a service account key, you can use it here:
-    // const serviceAccount = require('./serviceAccountKey.json');
-    // initializeApp({ credential: cert(serviceAccount), storageBucket: config.storageBucket });
-    
-    // Otherwise, it will try to use Application Default Credentials
-    initializeApp({
-      projectId: config.projectId,
-      storageBucket: config.storageBucket || `${config.projectId}.appspot.com`
-    });
+    // Check if a service account JSON string is provided via environment variables (e.g., on Render)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      try {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        initializeApp({
+          credential: cert(serviceAccount),
+          storageBucket: config.storageBucket || `${config.projectId}.appspot.com`
+        });
+        console.log("Firebase Admin initialized with Service Account from ENV.");
+      } catch (e) {
+        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT env var:", e);
+      }
+    } else {
+      // Otherwise, it will try to use Application Default Credentials (works in AI Studio / Google Cloud)
+      initializeApp({
+        projectId: config.projectId,
+        storageBucket: config.storageBucket || `${config.projectId}.appspot.com`
+      });
+      console.log("Firebase Admin initialized with Application Default Credentials.");
+    }
   }
 
   // In firebase-admin v12+, you can specify the database ID if needed

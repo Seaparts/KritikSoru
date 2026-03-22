@@ -4,12 +4,11 @@ import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { handleWhatsAppWebhook, verifyWhatsAppWebhook } from "./server/whatsappHandler";
-import { registerUser, loginUser, updateProfile } from "./server/authHandler";
-import { getUserStats, getQuestionHistory, getPaymentHistory, purchasePlan } from "./server/apiHandler";
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  // Use process.env.PORT for Render, fallback to 3000 for local/AI Studio
+  const PORT = parseInt(process.env.PORT || "3000", 10);
 
   app.use(cors());
   app.use(express.json());
@@ -22,17 +21,6 @@ async function startServer() {
   // WhatsApp Webhook Routes
   app.get("/api/webhook/whatsapp", verifyWhatsAppWebhook);
   app.post("/api/webhook/whatsapp", handleWhatsAppWebhook);
-
-  // Auth Routes
-  app.post("/api/auth/register", registerUser);
-  app.post("/api/auth/login", loginUser);
-  app.put("/api/auth/profile", updateProfile);
-
-  // App API Routes
-  app.get("/api/user/stats", getUserStats);
-  app.get("/api/user/questions", getQuestionHistory);
-  app.get("/api/user/payments", getPaymentHistory);
-  app.post("/api/payments/purchase", purchasePlan);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

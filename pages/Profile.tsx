@@ -35,30 +35,32 @@ const Profile: React.FC = () => {
   // Initial Data Fetch
   useEffect(() => {
     const loadInitialData = async () => {
-      const s = await fetchUserStats();
-      setStats(s);
+      if (user?.id) {
+        const s = await fetchUserStats(user.id);
+        setStats(s);
+      }
     };
     loadInitialData();
-  }, []);
+  }, [user?.id]);
 
   // Lazy Load Data on Tab Change
   useEffect(() => {
     const loadTabData = async () => {
-      if (activeTab === 'questions' && questions.length === 0) {
+      if (activeTab === 'questions' && questions.length === 0 && user?.id) {
         setIsLoading(true);
-        const data = await fetchQuestionHistory();
+        const data = await fetchQuestionHistory(user.id);
         setQuestions(data);
         setIsLoading(false);
       }
-      if (activeTab === 'payments' && payments.length === 0) {
+      if (activeTab === 'payments' && payments.length === 0 && user?.id) {
         setIsLoading(true);
-        const data = await fetchPaymentHistory();
+        const data = await fetchPaymentHistory(user.id);
         setPayments(data);
         setIsLoading(false);
       }
     };
     loadTabData();
-  }, [activeTab, questions.length, payments.length]);
+  }, [activeTab, questions.length, payments.length, user?.id]);
 
   if (!user) return null;
 
@@ -193,6 +195,7 @@ const PlanCreditTab: React.FC<{ stats: UserStats | null, user: any }> = ({ stats
 // 2. Question History Tab
 const QuestionHistoryTab: React.FC<{ data: QuestionHistoryItem[]; loading: boolean }> = ({ data, loading }) => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const itemsPerPage = 5;
 
   const filteredData = data; 
@@ -208,6 +211,10 @@ const QuestionHistoryTab: React.FC<{ data: QuestionHistoryItem[]; loading: boole
     }
   };
 
+  const toggleExpand = (id: string) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* List */}
@@ -220,22 +227,66 @@ const QuestionHistoryTab: React.FC<{ data: QuestionHistoryItem[]; loading: boole
           </div>
         ) : (
           currentData.map((item) => (
-            <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-all flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500 font-bold text-sm">
-                  {item.examType}
+            <div key={item.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-all overflow-hidden">
+              <div 
+                className="p-4 flex items-center justify-between gap-4 cursor-pointer"
+                onClick={() => toggleExpand(item.id)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500 font-bold text-sm">
+                    {item.examType}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800 text-base">{item.subject}</h4>
+                    <p className="text-slate-500 text-sm">{item.topic}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-800 text-base">{item.subject}</h4>
-                  <p className="text-slate-500 text-sm">{item.topic}</p>
+                <div className="text-right flex items-center gap-4">
+                  <div>
+                    <div className="text-slate-800 font-medium text-sm mb-1">{formatDate(item.date)}</div>
+                    <div className="text-slate-500 text-sm font-medium">
+                      {item.status === 'solved' ? 'Çözüldü' : 'Bekliyor'}
+                    </div>
+                  </div>
+                  <div className="text-slate-400">
+                    {expandedId === item.id ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-slate-800 font-medium text-sm mb-1">{formatDate(item.date)}</div>
-                <div className="text-slate-500 text-sm font-medium">
-                  {item.solutionTime}
+              
+              {/* Expanded Content */}
+              {expandedId === item.id && (
+                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Question Image/Text */}
+                    <div>
+                      <h5 className="font-bold text-slate-700 mb-2 text-sm uppercase tracking-wider">Soru</h5>
+                      {item.imageUrl && item.imageUrl !== 'https://picsum.photos/seed/error/800/600' ? (
+                        <div className="rounded-xl overflow-hidden border border-slate-200 mb-3">
+                          <img src={item.imageUrl} alt="Soru" className="w-full h-auto object-contain max-h-64 bg-white" referrerPolicy="no-referrer" />
+                        </div>
+                      ) : null}
+                      {item.questionText && (
+                        <div className="bg-white p-4 rounded-xl border border-slate-200 text-slate-700 text-sm whitespace-pre-wrap">
+                          {item.questionText}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Answer Text */}
+                    <div>
+                      <h5 className="font-bold text-blue-700 mb-2 text-sm uppercase tracking-wider">Çözüm</h5>
+                      <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 text-slate-800 text-sm whitespace-pre-wrap h-full">
+                        {item.answerText || 'Çözüm bulunamadı.'}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ))
         )}
