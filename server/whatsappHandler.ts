@@ -145,13 +145,13 @@ async function analyzeQuestion(text: string): Promise<{ isQuestion: boolean, dif
       messages: [
         {
           role: "system",
-          content: `Sen bir eğitim asistanısın. Verilen metnin bir TYT, AYT veya LGS sınav sorusu olup olmadığını kontrol et. 
+          content: `Sen bir eğitim asistanısın. Verilen metnin çözülmesi gereken bir ders/eğitim sorusu (matematik, fizik, kimya vb. herhangi bir seviyede) olup olmadığını kontrol et. Soru en basit düzeyde bir denklem veya işlem bile olsa 'isQuestion: true' döndür. Sadece sohbet, selamlaşma veya eğitimle alakasız metinlerde 'false' döndür.
           Eğer soru ise zorluk seviyesini 1 ile 4 arasında belirle.
           1: Kolay (tek işlem, basit bilgi, 1 adım çözümlü sorular)
           2: Orta (2-3 işlemli, temel yorum soruları)
           3: Zor (çok adımlı işlem, dikkat gerektiren mantık soruları)
           4: Çok Zor (uzun mantık zinciri, sınavın ayırt edici soruları)
-          Ayrıca sorunun hangi sınava (TYT, AYT, LGS, YKS, KPSS, ALES, DGS, Diğer), hangi derse (Matematik, Fizik, Kimya, Biyoloji, Türkçe, Tarih, Coğrafya, vb.) ve hangi konuya ait olduğunu belirle.
+          Ayrıca sorunun hangi sınava (TYT, AYT, LGS, YKS, KPSS, ALES, DGS, Okul Sınavı, Diğer), hangi derse (Matematik, Fizik, Kimya, Biyoloji, Türkçe, Tarih, Coğrafya, vb.) ve hangi konuya ait olduğunu belirle.
           Sadece şu JSON formatında yanıt ver: {"isQuestion": true/false, "difficulty": 1/2/3/4, "examType": "Sınav Türü", "subject": "Ders Adı", "topic": "Konu Adı"}`
         },
         { role: "user", content: text }
@@ -313,6 +313,8 @@ function normalizePhone(phone: string): string {
 export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
   try {
     const body = req.body;
+    console.log("--- Incoming WhatsApp Webhook ---");
+    console.log(JSON.stringify(body, null, 2));
 
     if (body.object === "whatsapp_business_account") {
       const entry = body.entry?.[0];
@@ -384,15 +386,28 @@ export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
         // 3. Gelen mesajın metin mi görsel mi olduğunun kontrolü.
         let questionText = "";
 
-        if (msg.type === "text") {
+        console.log("Message Type:", msg.type);
+
+        if (msg.type === "text" && msg.text && msg.text.body) {
           questionText = msg.text.body;
-        } else if (msg.type === "image") {
+        } else if (msg.type === "image" && msg.image && msg.image.id) {
           const imageId = msg.image.id;
           // Görseli metne çevir
           questionText = await extractTextFromWhatsAppImage(imageId);
         } else {
+          console.log("Unsupported message type or missing content:", msg);
+          await sendWhatsAppMessage(phone, "Şu anda sadece metin ve görsel mesajları destekliyoruz.");
           res.sendStatus(200);
           return;
+        }
+
+        console.log("Extracted Question Text:", questionText);
+
+        if (!questionText || questionText.trim() === "") {
+           console.log("Question text is empty after extraction.");
+           await sendWhatsAppMessage(phone, "Gönderdiğiniz mesajdan bir soru çıkarılamadı. Lütfen tekrar deneyin.");
+           res.sendStatus(200);
+           return;
         }
 
         // Metin bir tyt, ayt ve lgs sınav sorusu içeriyor mu GPT-4o mini ile kontrol et.
