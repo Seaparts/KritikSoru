@@ -6,6 +6,7 @@ import {
   CreditCard, AlertCircle, Lock
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { fetchUsers, UserItem } from '../services/api';
 
 // --- MOCK DATA ---
 
@@ -78,6 +79,21 @@ const AdminDashboard: React.FC = () => {
   const [error, setError] = useState('');
   const [isHealthy, setIsHealthy] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [usersList, setUsersList] = useState<UserItem[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadUsers();
+    }
+  }, [isAuthenticated]);
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    const data = await fetchUsers();
+    setUsersList(data);
+    setLoadingUsers(false);
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,13 +105,13 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Simulate API call
+    await loadUsers();
     setTimeout(() => {
       setIsRefreshing(false);
       setIsHealthy(Math.random() > 0.1); // 10% chance to show error for demo
-    }, 1000);
+    }, 500);
   };
 
   const handleLogout = () => {
@@ -478,6 +494,61 @@ const AdminDashboard: React.FC = () => {
                 <span className="text-sm font-bold text-blue-400 uppercase tracking-wider">Production</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Real Users Table */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm overflow-hidden flex flex-col">
+          <SectionHeader title="Tüm Kullanıcılar (Gerçek Veri)" icon={Users} />
+          <div className="overflow-x-auto flex-1">
+            {loadingUsers ? (
+              <div className="flex justify-center items-center py-10">
+                <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+              </div>
+            ) : (
+              <table className="w-full text-left text-sm text-slate-300 whitespace-nowrap">
+                <thead className="bg-slate-800/50 text-slate-400 uppercase text-xs">
+                  <tr>
+                    <th className="px-4 py-3 rounded-tl-lg">İsim</th>
+                    <th className="px-4 py-3">Telefon</th>
+                    <th className="px-4 py-3">E-posta</th>
+                    <th className="px-4 py-3">Paket</th>
+                    <th className="px-4 py-3">Kalan Kontör</th>
+                    <th className="px-4 py-3">Günlük Soru</th>
+                    <th className="px-4 py-3">Kayıt Tarihi</th>
+                    <th className="px-4 py-3 rounded-tr-lg">Rol</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/50">
+                  {usersList.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-slate-500">Henüz kullanıcı bulunmuyor.</td>
+                    </tr>
+                  ) : (
+                    usersList.map((u) => (
+                      <tr key={u.id} className="hover:bg-slate-800/30 transition-colors">
+                        <td className="px-4 py-3 font-medium text-white">{u.name}</td>
+                        <td className="px-4 py-3 font-mono text-xs">{u.phone}</td>
+                        <td className="px-4 py-3 text-xs text-slate-400">{u.email}</td>
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-1 text-[10px] font-bold uppercase rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            {u.activePlan}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-emerald-400">{u.tokens}</td>
+                        <td className="px-4 py-3 text-xs text-slate-400">{u.dailyQuestionCount} / 5</td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{u.createdAt}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${u.role === 'admin' ? 'bg-purple-500/10 text-purple-400' : 'bg-slate-700 text-slate-300'}`}>
+                            {u.role}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 

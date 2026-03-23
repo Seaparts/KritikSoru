@@ -32,6 +32,50 @@ export interface PaymentHistoryItem {
   status: 'completed' | 'cancelled' | 'pending' | 'success' | 'failed';
 }
 
+export interface UserItem {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  tokens: number;
+  role: string;
+  activePlan: string;
+  dailyQuestionCount: number;
+  lastQuestionDate: string;
+  createdAt: string;
+}
+
+export const fetchUsers = async (): Promise<UserItem[]> => {
+  try {
+    const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      let formattedDate = 'Bilinmiyor';
+      if (data.createdAt) {
+        const d = new Date(data.createdAt);
+        formattedDate = `${d.toLocaleDateString('tr-TR')} ${d.toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}`;
+      }
+      
+      return {
+        id: doc.id,
+        name: data.name || 'İsimsiz',
+        email: data.email || '-',
+        phone: data.phone || '-',
+        tokens: data.tokens || 0,
+        role: data.role || 'user',
+        activePlan: data.activePlan || 'free',
+        dailyQuestionCount: data.dailyQuestionCount || 0,
+        lastQuestionDate: data.lastQuestionDate || '-',
+        createdAt: formattedDate
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return [];
+  }
+};
+
 export const fetchUserStats = async (userId: string): Promise<UserStats> => {
   // Stats are mostly derived from the user document which is already in AuthContext
   // This is just a placeholder if we need to fetch aggregate data later

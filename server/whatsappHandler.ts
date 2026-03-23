@@ -28,7 +28,7 @@ async function sendWhatsAppMessage(to: string, text: string) {
   }
 
   try {
-    await fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, {
+    const response = await fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -41,6 +41,10 @@ async function sendWhatsAppMessage(to: string, text: string) {
         text: { body: text }
       })
     });
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("WhatsApp API Error (sendWhatsAppMessage):", data);
+    }
   } catch (error) {
     console.error("Error sending WhatsApp message:", error);
   }
@@ -56,7 +60,7 @@ async function sendWhatsAppImage(to: string, imageUrl: string) {
   }
 
   try {
-    await fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, {
+    const response = await fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -69,6 +73,10 @@ async function sendWhatsAppImage(to: string, imageUrl: string) {
         image: { link: imageUrl }
       })
     });
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("WhatsApp API Error (sendWhatsAppImage):", data);
+    }
   } catch (error) {
     console.error("Error sending WhatsApp image:", error);
   }
@@ -337,6 +345,7 @@ export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
         const phoneDoc = await db.collection('phone_numbers').doc(normalizedPhone).get();
         
         if (!phoneDoc.exists) {
+          console.log(`User not found for phone: ${normalizedPhone}`);
           await sendWhatsAppMessage(phone, "Üyeliğiniz bulunamadı. www.kritiksoru.com 'dan üye olabilirsiniz.");
           res.sendStatus(200);
           return;
@@ -344,6 +353,7 @@ export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
 
         const uid = phoneDoc.data()?.uid;
         if (!uid) {
+          console.log(`UID not found for phone: ${normalizedPhone}`);
           await sendWhatsAppMessage(phone, "Üyeliğiniz bulunamadı. www.kritiksoru.com 'dan üye olabilirsiniz.");
           res.sendStatus(200);
           return;
@@ -353,6 +363,7 @@ export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
         const user = userDoc.data();
 
         if (!user) {
+          console.log(`User document not found for UID: ${uid}`);
           await sendWhatsAppMessage(phone, "Üyeliğiniz bulunamadı. www.kritiksoru.com 'dan üye olabilirsiniz.");
           res.sendStatus(200);
           return;
@@ -361,6 +372,7 @@ export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
         // 2. Üyenin kontör miktarı kontrolü.
         const tokens = user.tokens || 0;
         if (tokens === 0) {
+          console.log(`User ${uid} has 0 tokens.`);
           await sendWhatsAppMessage(phone, "Yeterli kontörünüz bulunmamaktadır. www.kritiksoru.com 'dan kontör yükleyebilirsiniz.");
           res.sendStatus(200);
           return;
@@ -378,6 +390,7 @@ export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
 
         // Eğer günlük limit (5) dolduysa, mesaj gönder ve işlemi durdur
         if (dailyCount >= 5) {
+          console.log(`User ${uid} reached daily limit (${dailyCount}).`);
           await sendWhatsAppMessage(phone, "Günlük soru kotasını doldurdun. Yarın görüşmek üzere! ");
           res.sendStatus(200);
           return;

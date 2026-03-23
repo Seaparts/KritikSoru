@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -15,7 +15,7 @@ import Profile from './pages/Profile';
 
 const Layout: React.FC = () => {
   const location = useLocation();
-  const isAuthPage = ['/giris', '/kayit', '/gizli-admin'].includes(location.pathname);
+  const isAuthPage = ['/giris', '/kayit', '/admin'].includes(location.pathname);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -29,7 +29,7 @@ const Layout: React.FC = () => {
           <Route path="/kayit" element={<Register />} />
           <Route path="/panel" element={<Dashboard />} />
           <Route path="/profil" element={<Profile />} />
-          <Route path="/gizli-admin" element={<AdminDashboard />} />
+          <Route path="/admin" element={<AdminDashboard />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -41,9 +41,9 @@ const Layout: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <HashRouter>
+      <BrowserRouter>
         <Layout />
-      </HashRouter>
+      </BrowserRouter>
     </AuthProvider>
   );
 };
