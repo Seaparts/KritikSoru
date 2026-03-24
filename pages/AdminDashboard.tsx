@@ -127,7 +127,6 @@ const AdminDashboard: React.FC = () => {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setPassword('');
-    navigate('/');
   };
 
   if (!isAuthenticated) {
@@ -192,6 +191,23 @@ const AdminDashboard: React.FC = () => {
     }
     return false;
   }).length;
+
+  const planCounts = {
+    free: 0,
+    mini: 0,
+    netArttir: 0,
+    fullFocus: 0,
+    efsaneMod: 0,
+  };
+
+  usersList.forEach(u => {
+    if (u.activePlan === 'free') planCounts.free++;
+    else if (u.activePlan === 'mini') planCounts.mini++;
+    else if (u.activePlan === 'net-arttir') planCounts.netArttir++;
+    else if (u.activePlan === 'full-focus') planCounts.fullFocus++;
+    else if (u.activePlan === 'efsane-mod') planCounts.efsaneMod++;
+    else planCounts.free++; // default to free if unknown
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-blue-500/30">
@@ -313,23 +329,23 @@ const AdminDashboard: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
                 <span className="text-sm font-medium text-slate-300">Sadece Kayıtlı (Ücretsiz)</span>
-                <span className="font-bold text-white">5,240</span>
+                <span className="font-bold text-white">{planCounts.free.toLocaleString('tr-TR')}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
                 <span className="text-sm font-medium text-slate-300">Mini Çözüm</span>
-                <span className="font-bold text-white">3,150</span>
+                <span className="font-bold text-white">{planCounts.mini.toLocaleString('tr-TR')}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
                 <span className="text-sm font-medium text-slate-300">Net Arttır</span>
-                <span className="font-bold text-white">2,840</span>
+                <span className="font-bold text-white">{planCounts.netArttir.toLocaleString('tr-TR')}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
                 <span className="text-sm font-medium text-slate-300">Full Focus</span>
-                <span className="font-bold text-white">980</span>
+                <span className="font-bold text-white">{planCounts.fullFocus.toLocaleString('tr-TR')}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
                 <span className="text-sm font-medium text-slate-300">Efsane Mod</span>
-                <span className="font-bold text-white">248</span>
+                <span className="font-bold text-white">{planCounts.efsaneMod.toLocaleString('tr-TR')}</span>
               </div>
             </div>
           </div>
