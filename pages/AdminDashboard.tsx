@@ -161,6 +161,19 @@ const AdminDashboard: React.FC = () => {
     );
   }
 
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('tr-TR');
+  const thisMonthStr = today.toLocaleDateString('tr-TR', { month: '2-digit', year: 'numeric' });
+
+  const usersToday = usersList.filter(u => u.createdAt.startsWith(todayStr)).length;
+  const usersThisMonth = usersList.filter(u => {
+    const parts = u.createdAt.split(' ')[0].split('.');
+    if (parts.length === 3) {
+      return `${parts[1]}.${parts[2]}` === thisMonthStr;
+    }
+    return false;
+  }).length;
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-blue-500/30">
       {/* Navbar */}
@@ -206,8 +219,8 @@ const AdminDashboard: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <StatCard 
             title="Kullanıcılar" 
-            value="12,458" 
-            subtitle="Bugün: +142 | Bu Ay: +3,240"
+            value={usersList.length.toLocaleString('tr-TR')} 
+            subtitle={`Bugün: +${usersToday} | Bu Ay: +${usersThisMonth}`}
             icon={Users} 
             colorClass="bg-blue-500/10 text-blue-400" 
           />
