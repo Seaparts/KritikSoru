@@ -45,17 +45,28 @@ export interface UserItem {
   createdAt: string;
 }
 
+const formatDate = (dateValue: any): string => {
+  if (!dateValue) return 'Bilinmiyor';
+  
+  let d: Date;
+  if (typeof dateValue.toDate === 'function') {
+    d = dateValue.toDate();
+  } else {
+    d = new Date(dateValue);
+  }
+  
+  if (isNaN(d.getTime())) return 'Bilinmiyor';
+  
+  return `${d.toLocaleDateString('tr-TR')} ${d.toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}`;
+};
+
 export const fetchUsers = async (): Promise<UserItem[]> => {
   try {
     const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => {
       const data = doc.data();
-      let formattedDate = 'Bilinmiyor';
-      if (data.createdAt) {
-        const d = new Date(data.createdAt);
-        formattedDate = `${d.toLocaleDateString('tr-TR')} ${d.toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}`;
-      }
+      const formattedDate = formatDate(data.createdAt);
       
       return {
         id: doc.id,
@@ -97,12 +108,7 @@ export const fetchQuestionHistory = async (userId: string): Promise<QuestionHist
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => {
       const data = doc.data();
-      // Format date
-      let formattedDate = 'Bilinmiyor';
-      if (data.createdAt) {
-        const d = new Date(data.createdAt);
-        formattedDate = `${d.toLocaleDateString('tr-TR')} ${d.toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}`;
-      }
+      const formattedDate = formatDate(data.createdAt);
       
       return {
         id: doc.id,
@@ -135,11 +141,7 @@ export const fetchPaymentHistory = async (userId: string): Promise<PaymentHistor
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => {
       const data = doc.data();
-      let formattedDate = 'Bilinmiyor';
-      if (data.createdAt) {
-        const d = new Date(data.createdAt);
-        formattedDate = `${d.toLocaleDateString('tr-TR')} ${d.toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}`;
-      }
+      const formattedDate = formatDate(data.createdAt);
       
       return {
         id: doc.id,
