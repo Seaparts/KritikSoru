@@ -6,7 +6,7 @@ import {
   CreditCard, AlertCircle, Lock
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchUsers, UserItem } from '../services/api';
+import { fetchUsers, UserItem, fetchAllQuestions, QuestionHistoryItem } from '../services/api';
 
 // --- MOCK DATA ---
 
@@ -80,19 +80,29 @@ const AdminDashboard: React.FC = () => {
   const [isHealthy, setIsHealthy] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [usersList, setUsersList] = useState<UserItem[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [questionsList, setQuestionsList] = useState<QuestionHistoryItem[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
-      loadUsers();
+      loadData();
     }
   }, [isAuthenticated]);
 
-  const loadUsers = async () => {
-    setLoadingUsers(true);
-    const data = await fetchUsers();
-    setUsersList(data);
-    setLoadingUsers(false);
+  const loadData = async () => {
+    setLoadingData(true);
+    try {
+      const [users, questions] = await Promise.all([
+        fetchUsers(),
+        fetchAllQuestions()
+      ]);
+      setUsersList(users);
+      setQuestionsList(questions);
+    } catch (error) {
+      console.error("Error loading admin data:", error);
+    } finally {
+      setLoadingData(false);
+    }
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -107,7 +117,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await loadUsers();
+    await loadData();
     setTimeout(() => {
       setIsRefreshing(false);
       setIsHealthy(Math.random() > 0.1); // 10% chance to show error for demo
@@ -174,6 +184,15 @@ const AdminDashboard: React.FC = () => {
     return false;
   }).length;
 
+  const questionsToday = questionsList.filter(q => q.date.startsWith(todayStr)).length;
+  const questionsThisMonth = questionsList.filter(q => {
+    const parts = q.date.split(' ')[0].split('.');
+    if (parts.length === 3) {
+      return `${parts[1]}.${parts[2]}` === thisMonthStr;
+    }
+    return false;
+  }).length;
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-blue-500/30">
       {/* Navbar */}
@@ -226,8 +245,8 @@ const AdminDashboard: React.FC = () => {
           />
           <StatCard 
             title="Çözülen Sorular" 
-            value="145,892" 
-            subtitle="Bugün: +2,104 | Bu Ay: +45,120"
+            value={questionsList.length.toLocaleString('tr-TR')} 
+            subtitle={`Bugün: +${questionsToday} | Bu Ay: +${questionsThisMonth}`}
             icon={MessageSquare} 
             colorClass="bg-emerald-500/10 text-emerald-400" 
           />
@@ -336,26 +355,35 @@ const AdminDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
-                  {recentQuestions.map((q) => (
-                    <tr key={q.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs text-slate-400">{q.id}</td>
-                      <td className="px-4 py-3">{q.phone}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${q.channel === 'WhatsApp' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                          {q.channel}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 truncate max-w-[150px]">{q.question}</td>
-                      <td className="px-4 py-3 text-xs">{q.model}</td>
-                      <td className="px-4 py-3 font-mono text-xs">{q.cost}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{q.time}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${q.status === 'Çözüldü' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                          {q.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {questionsList.slice(0, 10).map((q) => {
+                    const user = usersList.find(u => u.id === q.uid);
+                    const phone = user?.phone || '-';
+                    const channel = 'WhatsApp'; // Defaulting to WhatsApp for now
+                    const questionTitle = `${q.subject} - ${q.topic}`;
+                    const statusText = q.status === 'solved' ? 'Çözüldü' : q.status === 'error' ? 'Hata' : 'Bekliyor';
+                    const statusClass = q.status === 'solved' ? 'bg-emerald-500/10 text-emerald-400' : q.status === 'error' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400';
+                    
+                    return (
+                      <tr key={q.id} className="hover:bg-slate-800/30 transition-colors">
+                        <td className="px-4 py-3 font-mono text-xs text-slate-400">{q.id.substring(0, 8)}</td>
+                        <td className="px-4 py-3">{phone}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${channel === 'WhatsApp' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                            {channel}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 truncate max-w-[150px]">{questionTitle}</td>
+                        <td className="px-4 py-3 text-xs">{q.model || 'gpt-4o'}</td>
+                        <td className="px-4 py-3 font-mono text-xs">${q.cost || 0}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{q.date}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${statusClass}`}>
+                            {statusText}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -514,7 +542,7 @@ const AdminDashboard: React.FC = () => {
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm overflow-hidden flex flex-col">
           <SectionHeader title="Tüm Kullanıcılar (Gerçek Veri)" icon={Users} />
           <div className="overflow-x-auto flex-1">
-            {loadingUsers ? (
+            {loadingData ? (
               <div className="flex justify-center items-center py-10">
                 <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
               </div>

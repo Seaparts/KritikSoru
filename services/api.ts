@@ -21,6 +21,9 @@ export interface QuestionHistoryItem {
   imageUrl?: string;
   questionText?: string;
   answerText?: string;
+  uid?: string;
+  model?: string;
+  cost?: number;
 }
 
 export interface PaymentHistoryItem {
@@ -97,6 +100,40 @@ export const fetchUserStats = async (userId: string): Promise<UserStats> => {
   };
 };
 
+export const fetchAllQuestions = async (): Promise<QuestionHistoryItem[]> => {
+  try {
+    const q = query(
+      collection(db, 'questions'),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      const formattedDate = formatDate(data.createdAt);
+      
+      return {
+        id: doc.id,
+        examType: data.examType || 'Genel',
+        subject: data.subject || 'Soru',
+        topic: data.topic || '',
+        date: formattedDate,
+        duration: '-',
+        solutionTime: '-',
+        status: data.status || 'solved',
+        imageUrl: data.imageUrl,
+        questionText: data.questionText,
+        answerText: data.answerText,
+        uid: data.uid,
+        model: data.model || 'gpt-4o',
+        cost: data.cost || 0
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching all questions:", error);
+    return [];
+  }
+};
+
 export const fetchQuestionHistory = async (userId: string): Promise<QuestionHistoryItem[]> => {
   if (!userId) return [];
   try {
@@ -121,7 +158,10 @@ export const fetchQuestionHistory = async (userId: string): Promise<QuestionHist
         status: data.status || 'solved',
         imageUrl: data.imageUrl,
         questionText: data.questionText,
-        answerText: data.answerText
+        answerText: data.answerText,
+        uid: data.uid,
+        model: data.model || 'gpt-4o',
+        cost: data.cost || 0
       };
     });
   } catch (error) {
