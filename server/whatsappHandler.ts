@@ -53,16 +53,53 @@ async function sendWhatsAppMessage(to: string, text: string) {
   }
 }
 
-async function sendWhatsAppImage(to: string, imageUrl: string) {
+async function sendWhatsAppImage(to: string, imageUrl: string): Promise<boolean> {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   
   if (!token || !phoneId) {
     console.log(`[MOCK WHATSAPP] To: ${to} | Image URL: ${imageUrl}`);
-    return;
+    return true;
   }
 
   try {
+    // 1. Read the local image file
+    const fileName = imageUrl.split('/').pop();
+    if (!fileName) {
+      console.error("Invalid image URL:", imageUrl);
+      return false;
+    }
+    const filePath = path.join(process.cwd(), 'solutions', fileName);
+    if (!fs.existsSync(filePath)) {
+      console.error("Image file not found:", filePath);
+      return false;
+    }
+    const buffer = fs.readFileSync(filePath);
+
+    // 2. Upload the image to WhatsApp Media API
+    const formData = new FormData();
+    const blob = new Blob([buffer], { type: 'image/png' });
+    formData.append('file', blob, fileName);
+    formData.append('type', 'image/png');
+    formData.append('messaging_product', 'whatsapp');
+
+    const uploadResponse = await fetch(`https://graph.facebook.com/v17.0/${phoneId}/media`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+
+    const uploadData = await uploadResponse.json();
+    if (!uploadResponse.ok) {
+      console.error("WhatsApp Media Upload Error:", uploadData);
+      return false;
+    }
+
+    const mediaId = uploadData.id;
+
+    // 3. Send the image message using the media ID
     const response = await fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, {
       method: 'POST',
       headers: {
@@ -73,15 +110,18 @@ async function sendWhatsAppImage(to: string, imageUrl: string) {
         messaging_product: 'whatsapp',
         to: to,
         type: 'image',
-        image: { link: imageUrl }
+        image: { id: mediaId }
       })
     });
     const data = await response.json();
     if (!response.ok) {
       console.error("WhatsApp API Error (sendWhatsAppImage):", data);
+      return false;
     }
+    return true;
   } catch (error) {
     console.error("Error sending WhatsApp image:", error);
+    return false;
   }
 }
 
@@ -228,7 +268,7 @@ async function solveQuestion(text: string, difficulty: number): Promise<string> 
   }
 }
 
-async function generateAndUploadImage(solutionText: string): Promise<string> {
+async function generateAndUploadImage(solutionText: string, baseUrl: string): Promise<string> {
   const ai = getOpenAI();
   if (!ai) return "https://picsum.photos/seed/solution/800/600";
 
@@ -315,8 +355,7 @@ Amaç: Backend çözüm metnini bu defter görüntüsüne daha sonra otomatik ye
     fs.writeFileSync(filePath, finalBuffer);
 
     // Get the base URL from the environment or use a default
-    const appUrl = process.env.APP_URL || 'https://ais-dev-xosu7z6ydgpuvpljjftqgf-8689165711.europe-west3.run.app';
-    const finalUrl = `${appUrl}/solutions/${fileName}`;
+    const finalUrl = `${baseUrl}/solutions/${fileName}`;
     
     console.log("Successfully saved canvas image locally:", finalUrl);
     return finalUrl;
@@ -385,7 +424,8 @@ export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
 
       if (messages && messages.length > 0) {
         // Process message asynchronously
-        processWhatsAppMessage(messages[0]).catch(console.error);
+        const baseUrl = `https://${req.get('host')}`;
+        processWhatsAppMessage(messages[0], baseUrl).catch(console.error);
       }
     } else {
       res.sendStatus(404);
@@ -398,7 +438,7 @@ export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
   }
 };
 
-async function processWhatsAppMessage(msg: any) {
+async function processWhatsAppMessage(msg: any, baseUrl: string) {
   try {
     const phone = msg.from; // e.g., "905551234567"
     const normalizedPhone = normalizePhone(phone);
@@ -495,11 +535,14 @@ async function processWhatsAppMessage(msg: any) {
     const solutionText = await solveQuestion(questionText, analysis.difficulty);
 
     // Soru çözümünü metnini görsel üretim promptunu kullanarak görsele dönüştür & Firebase Storage'a yükle
-    const solutionImageUrl = await generateAndUploadImage(solutionText);
+    const solutionImageUrl = await generateAndUploadImage(solutionText, baseUrl);
 
     // Görseli whatsapp'tan kullanıcıya gönder.
     if (solutionImageUrl) {
-      await sendWhatsAppImage(phone, solutionImageUrl);
+      const success = await sendWhatsAppImage(phone, solutionImageUrl);
+      if (!success) {
+        await sendWhatsAppMessage(phone, "Görsel gönderilirken bir hata oluştu. Çözüm:\n\n" + solutionText);
+      }
     } else {
       // Görsel oluşturulamadıysa veya yüklenemediyse metin olarak gönder
       await sendWhatsAppMessage(phone, "Görsel oluşturulurken bir hata oluştu. Çözüm:\n\n" + solutionText);
