@@ -260,19 +260,26 @@ Amaç: Backend çözüm metnini bu defter görüntüsüne daha sonra otomatik ye
     ctx.drawImage(bgImage, 0, 0, bgImage.width, bgImage.height);
 
     // 4. Configure text rendering
-    ctx.font = '32px sans-serif'; // Clean, readable font
-    ctx.fillStyle = '#1e293b'; // Dark slate color to look like pen ink
+    ctx.font = 'bold 36px Arial'; // Use standard font
+    ctx.fillStyle = '#000000'; // Black text for better visibility
     
-    const marginX = bgImage.width * 0.08;
-    const marginY = bgImage.height * 0.12;
+    // Adjust margins based on the notebook image structure
+    const marginX = bgImage.width * 0.18; // 18% from left
+    const marginY = bgImage.height * 0.20; // 20% from top
     const maxWidth = bgImage.width - (marginX * 2);
-    const lineHeight = 48;
+    const lineHeight = 52;
 
     // 5. Wrap and draw text
     const paragraphs = solutionText.split('\n');
     let currentY = marginY;
 
     for (let p = 0; p < paragraphs.length; p++) {
+      // Skip empty paragraphs to avoid extra spacing, but add a small gap
+      if (paragraphs[p].trim() === '') {
+        currentY += lineHeight / 2;
+        continue;
+      }
+
       const words = paragraphs[p].split(' ');
       let line = '';
 
@@ -294,6 +301,7 @@ Amaç: Backend çözüm metnini bu defter görüntüsüne daha sonra otomatik ye
     }
 
     const finalBuffer = canvas.toBuffer('image/png');
+    console.log("Canvas text drawing completed. Buffer size:", finalBuffer.length);
 
     // 6. Upload to Firebase Storage
     if (storage) {
@@ -312,17 +320,19 @@ Amaç: Backend çözüm metnini bu defter görüntüsüne daha sonra otomatik ye
           expires: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days
         });
         
+        console.log("Successfully uploaded canvas image to Firebase Storage.");
         return signedUrl;
       } catch (storageError) {
-        console.error("Firebase Storage upload failed, falling back to OpenAI URL:", storageError);
-        return imageUrl;
+        console.error("Firebase Storage upload failed:", storageError);
+        return ""; // Return empty string to indicate failure
       }
+    } else {
+      console.error("Firebase Storage is not initialized.");
+      return "";
     }
-
-    return imageUrl;
   } catch (error) {
     console.error("Error generating/uploading image:", error);
-    return "https://picsum.photos/seed/error/800/600";
+    return "";
   }
 }
 
@@ -374,156 +384,163 @@ export const handleWhatsAppWebhook = async (req: Request, res: Response) => {
     console.log(JSON.stringify(body, null, 2));
 
     if (body.object === "whatsapp_business_account") {
+      // Send 200 OK immediately to prevent WhatsApp from retrying
+      res.sendStatus(200);
+
       const entry = body.entry?.[0];
       const changes = entry?.changes?.[0];
       const value = changes?.value;
       const messages = value?.messages;
 
       if (messages && messages.length > 0) {
-        const msg = messages[0];
-        const phone = msg.from; // e.g., "905551234567"
-        const normalizedPhone = normalizePhone(phone);
-
-        // 1. Whatsapp numarasından üyelik kontrolü.
-        if (!db) {
-          console.error("Firestore is not initialized.");
-          res.sendStatus(500);
-          return;
-        }
-
-        const phoneDoc = await db.collection('phone_numbers').doc(normalizedPhone).get();
-        
-        if (!phoneDoc.exists) {
-          console.log(`User not found for phone: ${normalizedPhone}`);
-          await sendWhatsAppMessage(phone, "Üyeliğiniz bulunamadı. www.kritiksoru.com 'dan üye olabilirsiniz.");
-          res.sendStatus(200);
-          return;
-        }
-
-        const uid = phoneDoc.data()?.uid;
-        if (!uid) {
-          console.log(`UID not found for phone: ${normalizedPhone}`);
-          await sendWhatsAppMessage(phone, "Üyeliğiniz bulunamadı. www.kritiksoru.com 'dan üye olabilirsiniz.");
-          res.sendStatus(200);
-          return;
-        }
-
-        const userDoc = await db.collection('users').doc(uid).get();
-        const user = userDoc.data();
-
-        if (!user) {
-          console.log(`User document not found for UID: ${uid}`);
-          await sendWhatsAppMessage(phone, "Üyeliğiniz bulunamadı. www.kritiksoru.com 'dan üye olabilirsiniz.");
-          res.sendStatus(200);
-          return;
-        }
-
-        // 2. Üyenin kontör miktarı kontrolü.
-        const tokens = user.tokens || 0;
-        if (tokens === 0) {
-          console.log(`User ${uid} has 0 tokens.`);
-          await sendWhatsAppMessage(phone, "Yeterli kontörünüz bulunmamaktadır. www.kritiksoru.com 'dan kontör yükleyebilirsiniz.");
-          res.sendStatus(200);
-          return;
-        }
-
-        // 2.5 Günlük soru limiti kontrolü (Her kullanıcı için günde max 5 soru)
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD formatında bugünün tarihi
-        let dailyCount = user.dailyQuestionCount || 0;
-        const lastDate = user.lastQuestionDate || "";
-
-        // Eğer son soru gönderilen tarih bugün değilse, sayacı sıfırla
-        if (lastDate !== today) {
-          dailyCount = 0;
-        }
-
-        // Eğer günlük limit (5) dolduysa, mesaj gönder ve işlemi durdur
-        if (dailyCount >= 5) {
-          console.log(`User ${uid} reached daily limit (${dailyCount}).`);
-          await sendWhatsAppMessage(phone, "Günlük soru kotasını doldurdun. Yarın görüşmek üzere! ");
-          res.sendStatus(200);
-          return;
-        }
-
-        // 3. Gelen mesajın metin mi görsel mi olduğunun kontrolü.
-        let questionText = "";
-
-        console.log("Message Type:", msg.type);
-
-        if (msg.type === "text" && msg.text && msg.text.body) {
-          questionText = msg.text.body;
-        } else if (msg.type === "image" && msg.image && msg.image.id) {
-          const imageId = msg.image.id;
-          // Görseli metne çevir
-          questionText = await extractTextFromWhatsAppImage(imageId);
-        } else {
-          console.log("Unsupported message type or missing content:", msg);
-          await sendWhatsAppMessage(phone, "Şu anda sadece metin ve görsel mesajları destekliyoruz.");
-          res.sendStatus(200);
-          return;
-        }
-
-        console.log("Extracted Question Text:", questionText);
-
-        if (!questionText || questionText.trim() === "") {
-           console.log("Question text is empty after extraction.");
-           await sendWhatsAppMessage(phone, "Gönderdiğiniz mesajdan bir soru çıkarılamadı. Lütfen tekrar deneyin.");
-           res.sendStatus(200);
-           return;
-        }
-
-        // Metin bir tyt, ayt ve lgs sınav sorusu içeriyor mu GPT-4o mini ile kontrol et.
-        const analysis = await analyzeQuestion(questionText);
-        
-        if (!analysis.isQuestion) {
-          await sendWhatsAppMessage(phone, "Soru bulunamadı. www.kritiksoru.com");
-          res.sendStatus(200);
-          return;
-        }
-
-        // Soru çözüm promtunu çalıştır
-        const solutionText = await solveQuestion(questionText, analysis.difficulty);
-
-        // Soru çözümünü metnini görsel üretim promptunu kullanarak görsele dönüştür & Firebase Storage'a yükle
-        const solutionImageUrl = await generateAndUploadImage(solutionText);
-
-        // Görseli whatsapp'tan kullanıcıya gönder.
-        await sendWhatsAppImage(phone, solutionImageUrl);
-
-        // Save the question to Firestore
-        await db.collection('questions').add({
-          uid: uid,
-          questionText: questionText,
-          answerText: solutionText,
-          imageUrl: solutionImageUrl,
-          status: 'solved',
-          model: 'gpt-4o',
-          cost: 1,
-          examType: analysis.examType,
-          subject: analysis.subject,
-          topic: analysis.topic,
-          createdAt: new Date().toISOString()
-        });
-
-        // Üyenin kontöründen 1 adet azalt ve günlük limiti güncelle.
-        const updatedTokens = tokens - 1;
-        await db.collection('users').doc(uid).update({ 
-          tokens: updatedTokens,
-          dailyQuestionCount: dailyCount + 1,
-          lastQuestionDate: today
-        });
-
-        // Kullanıcıya üyelik paketinin hangisi olduğu ve kalan kontör miktarını bir mesajla gönder.
-        const packageName = user.activePlan || "Standart Paket";
-        await sendWhatsAppMessage(phone, `Paketiniz: ${packageName}\nKalan kontör miktarınız: ${updatedTokens}`);
+        // Process message asynchronously
+        processWhatsAppMessage(messages[0]).catch(console.error);
       }
-      
-      res.sendStatus(200);
     } else {
       res.sendStatus(404);
     }
   } catch (error) {
     console.error("Webhook processing error:", error);
-    res.sendStatus(500);
+    if (!res.headersSent) {
+      res.sendStatus(500);
+    }
   }
 };
+
+async function processWhatsAppMessage(msg: any) {
+  try {
+    const phone = msg.from; // e.g., "905551234567"
+    const normalizedPhone = normalizePhone(phone);
+
+    // 1. Whatsapp numarasından üyelik kontrolü.
+    if (!db) {
+      console.error("Firestore is not initialized.");
+      return;
+    }
+
+    const phoneDoc = await db.collection('phone_numbers').doc(normalizedPhone).get();
+    
+    if (!phoneDoc.exists) {
+      console.log(`User not found for phone: ${normalizedPhone}`);
+      await sendWhatsAppMessage(phone, "Üyeliğiniz bulunamadı. www.kritiksoru.com 'dan üye olabilirsiniz.");
+      return;
+    }
+
+    const uid = phoneDoc.data()?.uid;
+    if (!uid) {
+      console.log(`UID not found for phone: ${normalizedPhone}`);
+      await sendWhatsAppMessage(phone, "Üyeliğiniz bulunamadı. www.kritiksoru.com 'dan üye olabilirsiniz.");
+      return;
+    }
+
+    const userDoc = await db.collection('users').doc(uid).get();
+    const user = userDoc.data();
+
+    if (!user) {
+      console.log(`User document not found for UID: ${uid}`);
+      await sendWhatsAppMessage(phone, "Üyeliğiniz bulunamadı. www.kritiksoru.com 'dan üye olabilirsiniz.");
+      return;
+    }
+
+    // 2. Üyenin kontör miktarı kontrolü.
+    const tokens = user.tokens || 0;
+    if (tokens === 0) {
+      console.log(`User ${uid} has 0 tokens.`);
+      await sendWhatsAppMessage(phone, "Yeterli kontörünüz bulunmamaktadır. www.kritiksoru.com 'dan kontör yükleyebilirsiniz.");
+      return;
+    }
+
+    // 2.5 Günlük soru limiti kontrolü (Her kullanıcı için günde max 5 soru)
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD formatında bugünün tarihi
+    let dailyCount = user.dailyQuestionCount || 0;
+    const lastDate = user.lastQuestionDate || "";
+
+    // Eğer son soru gönderilen tarih bugün değilse, sayacı sıfırla
+    if (lastDate !== today) {
+      dailyCount = 0;
+    }
+
+    // Eğer günlük limit (5) dolduysa, mesaj gönder ve işlemi durdur
+    if (dailyCount >= 5) {
+      console.log(`User ${uid} reached daily limit (${dailyCount}).`);
+      await sendWhatsAppMessage(phone, "Günlük soru kotasını doldurdun. Yarın görüşmek üzere! ");
+      return;
+    }
+
+    // 3. Gelen mesajın metin mi görsel mi olduğunun kontrolü.
+    let questionText = "";
+
+    console.log("Message Type:", msg.type);
+
+    if (msg.type === "text" && msg.text && msg.text.body) {
+      questionText = msg.text.body;
+    } else if (msg.type === "image" && msg.image && msg.image.id) {
+      const imageId = msg.image.id;
+      // Görseli metne çevir
+      questionText = await extractTextFromWhatsAppImage(imageId);
+    } else {
+      console.log("Unsupported message type or missing content:", msg);
+      await sendWhatsAppMessage(phone, "Şu anda sadece metin ve görsel mesajları destekliyoruz.");
+      return;
+    }
+
+    console.log("Extracted Question Text:", questionText);
+
+    if (!questionText || questionText.trim() === "") {
+       console.log("Question text is empty after extraction.");
+       await sendWhatsAppMessage(phone, "Gönderdiğiniz mesajdan bir soru çıkarılamadı. Lütfen tekrar deneyin.");
+       return;
+    }
+
+    // Metin bir tyt, ayt ve lgs sınav sorusu içeriyor mu GPT-4o mini ile kontrol et.
+    const analysis = await analyzeQuestion(questionText);
+    
+    if (!analysis.isQuestion) {
+      await sendWhatsAppMessage(phone, "Soru bulunamadı. www.kritiksoru.com");
+      return;
+    }
+
+    // Soru çözüm promtunu çalıştır
+    const solutionText = await solveQuestion(questionText, analysis.difficulty);
+
+    // Soru çözümünü metnini görsel üretim promptunu kullanarak görsele dönüştür & Firebase Storage'a yükle
+    const solutionImageUrl = await generateAndUploadImage(solutionText);
+
+    // Görseli whatsapp'tan kullanıcıya gönder.
+    if (solutionImageUrl) {
+      await sendWhatsAppImage(phone, solutionImageUrl);
+    } else {
+      // Görsel oluşturulamadıysa veya yüklenemediyse metin olarak gönder
+      await sendWhatsAppMessage(phone, "Görsel oluşturulurken bir hata oluştu. Çözüm:\n\n" + solutionText);
+    }
+
+    // Save the question to Firestore
+    await db.collection('questions').add({
+      uid: uid,
+      questionText: questionText,
+      answerText: solutionText,
+      imageUrl: solutionImageUrl,
+      status: 'solved',
+      model: 'gpt-4o',
+      cost: 1,
+      examType: analysis.examType,
+      subject: analysis.subject,
+      topic: analysis.topic,
+      createdAt: new Date().toISOString()
+    });
+
+    // Üyenin kontöründen 1 adet azalt ve günlük limiti güncelle.
+    const updatedTokens = tokens - 1;
+    await db.collection('users').doc(uid).update({ 
+      tokens: updatedTokens,
+      dailyQuestionCount: dailyCount + 1,
+      lastQuestionDate: today
+    });
+
+    // Kullanıcıya üyelik paketinin hangisi olduğu ve kalan kontör miktarını bir mesajla gönder.
+    const packageName = user.activePlan || "Standart Paket";
+    await sendWhatsAppMessage(phone, `Paketiniz: ${packageName}\nKalan kontör miktarınız: ${updatedTokens}`);
+  } catch (error) {
+    console.error("Error processing WhatsApp message:", error);
+  }
+}
