@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import fs from "fs";
 import { handleWhatsAppWebhook, verifyWhatsAppWebhook } from "./server/whatsappHandler";
 
 async function startServer() {
@@ -12,6 +13,13 @@ async function startServer() {
 
   app.use(cors());
   app.use(express.json());
+
+  // Ensure solutions directory exists and serve it statically
+  const solutionsDir = path.join(process.cwd(), "solutions");
+  if (!fs.existsSync(solutionsDir)) {
+    fs.mkdirSync(solutionsDir);
+  }
+  app.use("/solutions", express.static(solutionsDir));
 
   // API Routes
   app.get("/api/health", (req, res) => {

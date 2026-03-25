@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import OpenAI from 'openai';
 import { db, storage } from './firebaseAdmin';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
+import fs from 'fs';
+import path from 'path';
 
 // Initialize OpenAI
 let openai: OpenAI | null = null;
@@ -303,33 +305,22 @@ Amaç: Backend çözüm metnini bu defter görüntüsüne daha sonra otomatik ye
     const finalBuffer = canvas.toBuffer('image/png');
     console.log("Canvas text drawing completed. Buffer size:", finalBuffer.length);
 
-    // 6. Upload to Firebase Storage
-    if (storage) {
-      try {
-        const bucket = storage.bucket();
-        const fileName = `solutions/solution_${Date.now()}.png`;
-        const file = bucket.file(fileName);
-        
-        await file.save(finalBuffer, {
-          metadata: { contentType: 'image/png' }
-        });
-        
-        // Get a signed URL valid for 7 days
-        const [signedUrl] = await file.getSignedUrl({
-          action: 'read',
-          expires: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days
-        });
-        
-        console.log("Successfully uploaded canvas image to Firebase Storage.");
-        return signedUrl;
-      } catch (storageError) {
-        console.error("Firebase Storage upload failed:", storageError);
-        return ""; // Return empty string to indicate failure
-      }
-    } else {
-      console.error("Firebase Storage is not initialized.");
-      return "";
+    // 6. Save locally and return URL
+    const fileName = `solution_${Date.now()}.png`;
+    const solutionsDir = path.join(process.cwd(), 'solutions');
+    if (!fs.existsSync(solutionsDir)) {
+      fs.mkdirSync(solutionsDir);
     }
+    const filePath = path.join(solutionsDir, fileName);
+    fs.writeFileSync(filePath, finalBuffer);
+
+    // Get the base URL from the environment or use a default
+    const appUrl = process.env.APP_URL || 'https://ais-dev-xosu7z6ydgpuvpljjftqgf-8689165711.europe-west3.run.app';
+    const finalUrl = `${appUrl}/solutions/${fileName}`;
+    
+    console.log("Successfully saved canvas image locally:", finalUrl);
+    return finalUrl;
+
   } catch (error) {
     console.error("Error generating/uploading image:", error);
     return "";
