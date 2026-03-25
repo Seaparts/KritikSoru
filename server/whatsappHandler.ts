@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import OpenAI from 'openai';
 import { db, storage } from './firebaseAdmin';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
 
 // Initialize OpenAI
 let openai: OpenAI | null = null;
@@ -197,7 +198,7 @@ async function solveQuestion(text: string, difficulty: number): Promise<string> 
       messages: [
         {
           role: "system",
-          content: "Sen uzman bir öğretmensin. Öğrencinin gönderdiği soruyu adım adım, anlaşılır bir şekilde çöz."
+          content: "Sen uzman bir öğretmensin. Öğrencinin gönderdiği soruyu adım adım, anlaşılır bir şekilde çöz. Çözümü düz metin (plain text) olarak yaz. Kesinlikle LaTeX, Markdown (yıldız, kare vb.) veya karmaşık semboller KULLANMA. Kesirleri a/b şeklinde, üslü sayıları a^b şeklinde, köklü sayıları kök(x) şeklinde yaz. Çözüm metni bir resmin üzerine yazdırılacağı için çok uzun paragraflardan kaçın, maddeler halinde ve kısa cümleler kur."
         },
         { role: "user", content: text }
       ]
@@ -213,7 +214,7 @@ async function solveQuestion(text: string, difficulty: number): Promise<string> 
         messages: [
           {
             role: "system",
-            content: "Sen uzman bir öğretmensin. Öğrencinin gönderdiği soruyu adım adım, anlaşılır bir şekilde çöz."
+            content: "Sen uzman bir öğretmensin. Öğrencinin gönderdiği soruyu adım adım, anlaşılır bir şekilde çöz. Çözümü düz metin (plain text) olarak yaz. Kesinlikle LaTeX, Markdown (yıldız, kare vb.) veya karmaşık semboller KULLANMA. Kesirleri a/b şeklinde, üslü sayıları a^b şeklinde, köklü sayıları kök(x) şeklinde yaz. Çözüm metni bir resmin üzerine yazdırılacağı için çok uzun paragraflardan kaçın, maddeler halinde ve kısa cümleler kur."
           },
           { role: "user", content: text }
         ]
@@ -233,8 +234,14 @@ async function generateAndUploadImage(solutionText: string): Promise<string> {
     // 1. Generate Image with DALL-E
     const response = await ai.images.generate({
       model: "dall-e-3",
-      prompt: `A clean, educational whiteboard showing the following step-by-step math/science solution clearly written in Turkish: "${solutionText.substring(0, 500)}..."`,
-      size: "1024x1024",
+      prompt: `Bir defter sayfası arka planı oluştur. Aşağıdaki gerekliliklere tamamen uy:
+1) Arka Plan: Temiz, yüksek çözünürlüklü, beyaz çizgili bir çizgili defter sayfası olsun. Sayfa hafif gerçekçi ışık-gölge hissi verebilir, ancak yazı okunabilirliğini bozmamalı. Üst ve alt kısımlar net, köşeler hafif yumuşak olabilir. Sayfada hiçbir yazı, çizim, leke, karalama OLMASIN.
+2) Metin Yerleşimi İçin Boş Alan: Defter sayfasının iç kısmında, çözüm metninin yerleştirileceği tamamen boş bir alan bırak. Boş alan: sayfanın sol ve sağından en az 5% içerde olsun, üstten 10% boşluk bırakılmış olsun, çözümün uzunluğuna göre otomatik genişleyebilir bir alan gibi görünmeli.
+3) Backend'in ekleyeceği çözüm metni için rehber: Bu görüntüde yazı SEN TARAFINDAN EKLENMEYECEK. Sadece yazının yerleştirileceği boş defter arka planı üret.
+4) Stil: Gerçekçi, ama natural light, 2D, profesyonel eğitim materyali tarzında, A4 oranı, Yüksek çözünürlük. Kenarlar kesik veya kırpılmış olmamalı.
+5) Tamamen Görsel Odaklı: Sorunun kendisini veya çözüm metnini ekleme. Sadece arka plan + boş alan üret.
+Amaç: Backend çözüm metnini bu defter görüntüsüne daha sonra otomatik yerleştirecek. Bu nedenle temiz ve metinsiz bir defter arka planı üret.`,
+      size: "1024x1792",
       quality: "standard",
       n: 1,
     });
@@ -242,18 +249,60 @@ async function generateAndUploadImage(solutionText: string): Promise<string> {
     const imageUrl = response.data[0].url;
     if (!imageUrl) return "https://picsum.photos/seed/error/800/600";
 
-    // 2. Upload to Firebase Storage
+    // 2. Download the DALL-E image
+    const imageResponse = await fetch(imageUrl);
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const bgImage = await loadImage(Buffer.from(arrayBuffer));
+
+    // 3. Create Canvas and draw background
+    const canvas = createCanvas(bgImage.width, bgImage.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bgImage, 0, 0, bgImage.width, bgImage.height);
+
+    // 4. Configure text rendering
+    ctx.font = '32px sans-serif'; // Clean, readable font
+    ctx.fillStyle = '#1e293b'; // Dark slate color to look like pen ink
+    
+    const marginX = bgImage.width * 0.08;
+    const marginY = bgImage.height * 0.12;
+    const maxWidth = bgImage.width - (marginX * 2);
+    const lineHeight = 48;
+
+    // 5. Wrap and draw text
+    const paragraphs = solutionText.split('\n');
+    let currentY = marginY;
+
+    for (let p = 0; p < paragraphs.length; p++) {
+      const words = paragraphs[p].split(' ');
+      let line = '';
+
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+
+        if (testWidth > maxWidth && n > 0) {
+          ctx.fillText(line, marginX, currentY);
+          line = words[n] + ' ';
+          currentY += lineHeight;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, marginX, currentY);
+      currentY += lineHeight;
+    }
+
+    const finalBuffer = canvas.toBuffer('image/png');
+
+    // 6. Upload to Firebase Storage
     if (storage) {
       try {
-        const imageResponse = await fetch(imageUrl);
-        const arrayBuffer = await imageResponse.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        
         const bucket = storage.bucket();
         const fileName = `solutions/solution_${Date.now()}.png`;
         const file = bucket.file(fileName);
         
-        await file.save(buffer, {
+        await file.save(finalBuffer, {
           metadata: { contentType: 'image/png' }
         });
         
