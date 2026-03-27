@@ -215,7 +215,7 @@ async function analyzeQuestion(text: string, uid: string): Promise<{ isQuestion:
 
   try {
     const response = await ai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5-nano",
       messages: [
         {
           role: "system",
@@ -234,7 +234,7 @@ async function analyzeQuestion(text: string, uid: string): Promise<{ isQuestion:
     });
 
     if (response.usage) {
-      await saveTokenUsage(uid, response.usage, "gpt-4o-mini", "analyze_question");
+      await saveTokenUsage(uid, response.usage, "gpt-5-nano", "analyze_question");
     }
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
@@ -255,11 +255,11 @@ async function solveQuestion(text: string, difficulty: number, uid: string): Pro
   const ai = getOpenAI();
   if (!ai) return "Bu sorunun çözümü: 2x = 10, x = 5. (Mock Çözüm)";
 
-  let modelToUse = "gpt-4o-mini";
-  if (difficulty === 1) modelToUse = "gpt-4o-mini";
-  else if (difficulty === 2) modelToUse = "gpt-4o";
-  else if (difficulty === 3) modelToUse = "gpt-4.1";
-  else if (difficulty >= 4) modelToUse = "gpt-5"; // Handling 4 or 5 as gpt-5 based on user prompt
+  let modelToUse = "gpt-5-nano";
+  if (difficulty === 1) modelToUse = "gpt-5-nano";
+  else if (difficulty === 2) modelToUse = "gpt-5-mini";
+  else if (difficulty === 3) modelToUse = "gpt-5";
+  else if (difficulty >= 4) modelToUse = "gpt-5.1";
 
   try {
     const response = await ai.chat.completions.create({
@@ -305,32 +305,20 @@ async function solveQuestion(text: string, difficulty: number, uid: string): Pro
 }
 
 async function generateAndUploadImage(solutionText: string, baseUrl: string): Promise<string> {
-  const ai = getOpenAI();
-  if (!ai) return "https://picsum.photos/seed/solution/800/600";
-
   try {
-    // 1. Generate Image with DALL-E
-    const response = await ai.images.generate({
-      model: "dall-e-3",
-      prompt: `Bir defter sayfası arka planı oluştur. Aşağıdaki gerekliliklere tamamen uy:
-1) Arka Plan: Temiz, yüksek çözünürlüklü, beyaz çizgili bir çizgili defter sayfası olsun. Sayfa hafif gerçekçi ışık-gölge hissi verebilir, ancak yazı okunabilirliğini bozmamalı. Üst ve alt kısımlar net, köşeler hafif yumuşak olabilir. Sayfada hiçbir yazı, çizim, leke, karalama OLMASIN.
-2) Metin Yerleşimi İçin Boş Alan: Defter sayfasının iç kısmında, çözüm metninin yerleştirileceği tamamen boş bir alan bırak. Boş alan: sayfanın sol ve sağından en az 5% içerde olsun, üstten 10% boşluk bırakılmış olsun, çözümün uzunluğuna göre otomatik genişleyebilir bir alan gibi görünmeli.
-3) Backend'in ekleyeceği çözüm metni için rehber: Bu görüntüde yazı SEN TARAFINDAN EKLENMEYECEK. Sadece yazının yerleştirileceği boş defter arka planı üret.
-4) Stil: Gerçekçi, ama natural light, 2D, profesyonel eğitim materyali tarzında, A4 oranı, Yüksek çözünürlük. Kenarlar kesik veya kırpılmış olmamalı.
-5) Tamamen Görsel Odaklı: Sorunun kendisini veya çözüm metnini ekleme. Sadece arka plan + boş alan üret.
-Amaç: Backend çözüm metnini bu defter görüntüsüne daha sonra otomatik yerleştirecek. Bu nedenle temiz ve metinsiz bir defter arka planı üret.`,
-      size: "1024x1792",
-      quality: "standard",
-      n: 1,
-    });
-
-    const imageUrl = response.data[0].url;
-    if (!imageUrl) return "https://picsum.photos/seed/error/800/600";
-
-    // 2. Download the DALL-E image
-    const imageResponse = await fetch(imageUrl);
-    const arrayBuffer = await imageResponse.arrayBuffer();
-    const bgImage = await loadImage(Buffer.from(arrayBuffer));
+    // 1. Find the image starting with 'generated' in the root directory
+    const files = fs.readdirSync(process.cwd());
+    const generatedImageFile = files.find(file => file.startsWith('generated') && (file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg')));
+    
+    let bgImage;
+    if (generatedImageFile) {
+      const imagePath = path.join(process.cwd(), generatedImageFile);
+      const imageBuffer = fs.readFileSync(imagePath);
+      bgImage = await loadImage(imageBuffer);
+    } else {
+      console.error("Background image starting with 'generated' not found. Please upload it to the root directory.");
+      return "https://picsum.photos/seed/error/800/600";
+    }
 
     // 3. Create Canvas and draw background
     const canvas = createCanvas(bgImage.width, bgImage.height);
