@@ -140,6 +140,33 @@
         }
       },
       "required": ["uid", "amount", "provider", "status", "createdAt"]
+    },
+    "Analytics": {
+      "title": "Analytics",
+      "description": "Stores site visit analytics.",
+      "type": "object",
+      "properties": {
+        "totalVisits": {
+          "type": "number",
+          "description": "Total number of visits (global doc only)."
+        },
+        "totalLoggedInVisits": {
+          "type": "number",
+          "description": "Total number of logged-in visits (global doc only)."
+        },
+        "visits": {
+          "type": "number",
+          "description": "Number of visits for a specific day (daily doc only)."
+        },
+        "loggedInVisits": {
+          "type": "number",
+          "description": "Number of logged-in visits for a specific day (daily doc only)."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date string for daily records (YYYY-MM-DD)."
+        }
+      }
     }
   },
   "firestore": {
@@ -160,6 +187,12 @@
         "$ref": "#/entities/Payment"
       },
       "description": "Stores payment records."
+    },
+    "/analytics/{docId}": {
+      "schema": {
+        "$ref": "#/entities/Analytics"
+      },
+      "description": "Stores global and daily visit analytics."
     }
   }
 }

@@ -1,5 +1,5 @@
 
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export interface UserStats {
@@ -212,4 +212,76 @@ export const handlePurchase = async (planId: string) => {
 export const loginUser = async (data: any) => {
   // This is no longer used as AuthContext handles login directly with Firebase
   throw new Error("Use AuthContext.login instead");
+};
+
+export const trackVisit = async (isLoggedIn: boolean) => {
+  try {
+    const today = new Date();
+    const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Global stats
+    const globalRef = doc(db, 'analytics', 'global');
+    const globalDoc = await getDoc(globalRef);
+    
+    if (!globalDoc.exists()) {
+      await setDoc(globalRef, {
+        totalVisits: 1,
+        totalLoggedInVisits: isLoggedIn ? 1 : 0
+      });
+    } else {
+      await updateDoc(globalRef, {
+        totalVisits: increment(1),
+        totalLoggedInVisits: isLoggedIn ? increment(1) : increment(0)
+      });
+    }
+    
+    // Daily stats
+    const dailyRef = doc(db, 'analytics', `daily_${dateString}`);
+    const dailyDoc = await getDoc(dailyRef);
+    
+    if (!dailyDoc.exists()) {
+      await setDoc(dailyRef, {
+        date: dateString,
+        visits: 1,
+        loggedInVisits: isLoggedIn ? 1 : 0
+      });
+    } else {
+      await updateDoc(dailyRef, {
+        visits: increment(1),
+        loggedInVisits: isLoggedIn ? increment(1) : increment(0)
+      });
+    }
+  } catch (error) {
+    console.error("Error tracking visit:", error);
+  }
+};
+
+export const getAnalytics = async () => {
+  try {
+    const today = new Date();
+    const dateString = today.toISOString().split('T')[0];
+    
+    const globalRef = doc(db, 'analytics', 'global');
+    const dailyRef = doc(db, 'analytics', `daily_${dateString}`);
+    
+    const [globalDoc, dailyDoc] = await Promise.all([
+      getDoc(globalRef),
+      getDoc(dailyRef)
+    ]);
+    
+    return {
+      totalVisits: globalDoc.exists() ? globalDoc.data().totalVisits || 0 : 0,
+      totalLoggedInVisits: globalDoc.exists() ? globalDoc.data().totalLoggedInVisits || 0 : 0,
+      todayVisits: dailyDoc.exists() ? dailyDoc.data().visits || 0 : 0,
+      todayLoggedInVisits: dailyDoc.exists() ? dailyDoc.data().loggedInVisits || 0 : 0
+    };
+  } catch (error) {
+    console.error("Error getting analytics:", error);
+    return {
+      totalVisits: 0,
+      totalLoggedInVisits: 0,
+      todayVisits: 0,
+      todayLoggedInVisits: 0
+    };
+  }
 };

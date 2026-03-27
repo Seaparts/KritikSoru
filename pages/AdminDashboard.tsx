@@ -3,10 +3,10 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { 
   Activity, RefreshCw, LogOut, Users, Package, MessageSquare, 
   DollarSign, TrendingUp, Server, Cpu, Database, Zap, Clock, ShieldCheck,
-  CreditCard, AlertCircle, Lock
+  CreditCard, AlertCircle, Lock, Eye, UserCheck
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchUsers, UserItem, fetchAllQuestions, QuestionHistoryItem } from '../services/api';
+import { fetchUsers, UserItem, fetchAllQuestions, QuestionHistoryItem, getAnalytics } from '../services/api';
 
 // --- MOCK DATA ---
 
@@ -81,6 +81,12 @@ const AdminDashboard: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [usersList, setUsersList] = useState<UserItem[]>([]);
   const [questionsList, setQuestionsList] = useState<QuestionHistoryItem[]>([]);
+  const [analyticsData, setAnalyticsData] = useState({
+    totalVisits: 0,
+    totalLoggedInVisits: 0,
+    todayVisits: 0,
+    todayLoggedInVisits: 0
+  });
   const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
@@ -92,12 +98,14 @@ const AdminDashboard: React.FC = () => {
   const loadData = async () => {
     setLoadingData(true);
     try {
-      const [users, questions] = await Promise.all([
+      const [users, questions, analytics] = await Promise.all([
         fetchUsers(),
-        fetchAllQuestions()
+        fetchAllQuestions(),
+        getAnalytics()
       ]);
       setUsersList(users);
       setQuestionsList(questions);
+      setAnalyticsData(analytics);
     } catch (error) {
       console.error("Error loading admin data:", error);
     } finally {
@@ -280,6 +288,41 @@ const AdminDashboard: React.FC = () => {
             icon={DollarSign} 
             colorClass="bg-purple-500/10 text-purple-400" 
           />
+        </div>
+
+        {/* Site Analytics Grid */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
+          <SectionHeader title="Site Ziyaret İstatistikleri" icon={Activity} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <StatCard 
+              title="Toplam Ziyaret" 
+              value={analyticsData.totalVisits.toLocaleString('tr-TR')} 
+              subtitle="Tüm zamanlar (Üye + Ziyaretçi)"
+              icon={Eye} 
+              colorClass="bg-indigo-500/10 text-indigo-400" 
+            />
+            <StatCard 
+              title="Bugünkü Ziyaret" 
+              value={analyticsData.todayVisits.toLocaleString('tr-TR')} 
+              subtitle="Bugün (Üye + Ziyaretçi)"
+              icon={Activity} 
+              colorClass="bg-sky-500/10 text-sky-400" 
+            />
+            <StatCard 
+              title="Toplam Üye Girişi" 
+              value={analyticsData.totalLoggedInVisits.toLocaleString('tr-TR')} 
+              subtitle="Tüm zamanlar (Sadece Üyeler)"
+              icon={UserCheck} 
+              colorClass="bg-fuchsia-500/10 text-fuchsia-400" 
+            />
+            <StatCard 
+              title="Bugünkü Üye Girişi" 
+              value={analyticsData.todayLoggedInVisits.toLocaleString('tr-TR')} 
+              subtitle="Bugün (Sadece Üyeler)"
+              icon={Users} 
+              colorClass="bg-pink-500/10 text-pink-400" 
+            />
+          </div>
         </div>
 
         {/* OpenAI & Packages Row */}

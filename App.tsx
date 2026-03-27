@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -12,6 +12,32 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import Profile from './pages/Profile';
+import { trackVisit } from './services/api';
+
+const VisitTracker: React.FC = () => {
+  const { isAuthenticated, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const hasVisited = sessionStorage.getItem('visited');
+    const hasLoggedInVisited = sessionStorage.getItem('loggedInVisited');
+
+    if (!hasVisited) {
+      trackVisit(isAuthenticated);
+      sessionStorage.setItem('visited', 'true');
+      if (isAuthenticated) {
+        sessionStorage.setItem('loggedInVisited', 'true');
+      }
+    } else if (isAuthenticated && !hasLoggedInVisited) {
+      // If they visited as guest, and then logged in during the same session
+      trackVisit(true);
+      sessionStorage.setItem('loggedInVisited', 'true');
+    }
+  }, [isAuthenticated, loading]);
+
+  return null;
+};
 
 const Layout: React.FC = () => {
   const location = useLocation();
@@ -41,6 +67,7 @@ const Layout: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
+      <VisitTracker />
       <BrowserRouter>
         <Layout />
       </BrowserRouter>

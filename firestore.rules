@@ -199,5 +199,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /analytics/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
   }
 }
