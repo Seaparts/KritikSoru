@@ -13,6 +13,7 @@ import { fetchUsers, UserItem, fetchAllQuestions, QuestionHistoryItem, getAnalyt
 const tokenUsageData = Array.from({ length: 19 }).map((_, i) => ({
   date: `Mar ${i + 1}`,
   tokens: Math.floor(Math.random() * 50000) + 10000,
+  cost: Number((Math.random() * 5).toFixed(4))
 }));
 
 const recentQuestions = Array.from({ length: 10 }).map((_, i) => ({
@@ -91,6 +92,7 @@ const AdminDashboard: React.FC = () => {
     totalPromptTokens: 0,
     totalCompletionTokens: 0,
     totalTokens: 0,
+    totalCost: 0,
     chartData: [] as any[]
   });
   const [loadingData, setLoadingData] = useState(false);
@@ -338,37 +340,36 @@ const AdminDashboard: React.FC = () => {
           {/* OpenAI Stats */}
           <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
             <SectionHeader title="OpenAI API Kullanımı" icon={Cpu} />
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
-                <div className="text-xs text-slate-500 mb-1">Üretilen Token</div>
-                <div className="text-xl font-bold text-white">45,230,000</div>
-              </div>
-              <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
-                <div className="text-xs text-slate-500 mb-1">Harcanan Token</div>
-                <div className="text-xl font-bold text-white">{tokenStats.totalTokens.toLocaleString('tr-TR')}</div>
-              </div>
-              <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
-                <div className="text-xs text-slate-500 mb-1">Kalan Token (Tahmini)</div>
-                <div className="text-xl font-bold text-emerald-400">{(45230000 - tokenStats.totalTokens).toLocaleString('tr-TR')}</div>
+            <div className="grid grid-cols-1 gap-4 mb-6">
+              <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 flex justify-between items-center">
+                <div>
+                  <div className="text-xs text-slate-500 mb-1">Harcanan Token</div>
+                  <div className="text-2xl font-bold text-white">{tokenStats.totalTokens.toLocaleString('tr-TR')}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-slate-500 mb-1">Toplam Maliyet</div>
+                  <div className="text-2xl font-bold text-emerald-400">${tokenStats.totalCost?.toFixed(4) || "0.0000"}</div>
+                </div>
               </div>
             </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={tokenStats.chartData.length > 0 ? tokenStats.chartData : tokenUsageData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorTokens" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value / 1000}k`} />
+                  <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '0.5rem', color: '#f8fafc' }}
-                    itemStyle={{ color: '#3b82f6' }}
+                    itemStyle={{ color: '#10b981' }}
+                    formatter={(value: number) => [`$${value.toFixed(4)}`, 'Maliyet']}
                   />
-                  <Area type="monotone" dataKey="tokens" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorTokens)" />
+                  <Area type="monotone" dataKey="cost" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorCost)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

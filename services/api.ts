@@ -294,18 +294,46 @@ export const getTokenUsageStats = async () => {
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
     let totalTokens = 0;
+    let totalCost = 0;
     
-    const dailyData: Record<string, number> = {};
+    const dailyData: Record<string, { tokens: number, cost: number }> = {};
+
+    const MODEL_PRICING: Record<string, { input: number, output: number }> = {
+      'gpt-5.4': { input: 2.50, output: 15.00 },
+      'gpt-5.2': { input: 1.75, output: 14.00 },
+      'gpt-5.1': { input: 1.25, output: 10.00 },
+      'gpt-5': { input: 1.25, output: 10.00 },
+      'gpt-5-mini': { input: 0.25, output: 2.00 },
+      'gpt-5-nano': { input: 0.05, output: 0.40 },
+      'gpt-4o': { input: 2.50, output: 10.00 },
+      'gpt-4o-mini': { input: 0.15, output: 0.60 },
+      'gpt-4.1': { input: 2.00, output: 8.00 },
+      'gpt-4.1-mini': { input: 0.80, output: 3.20 },
+      'gpt-4.1-nano': { input: 0.20, output: 0.80 },
+    };
 
     snapshot.forEach(doc => {
       const data = doc.data();
-      totalPromptTokens += data.promptTokens || 0;
-      totalCompletionTokens += data.completionTokens || 0;
-      totalTokens += data.totalTokens || 0;
+      const pTokens = data.promptTokens || 0;
+      const cTokens = data.completionTokens || 0;
+      const tTokens = data.totalTokens || 0;
+      const model = data.model || 'gpt-4o';
+      
+      totalPromptTokens += pTokens;
+      totalCompletionTokens += cTokens;
+      totalTokens += tTokens;
+      
+      const pricing = MODEL_PRICING[model] || MODEL_PRICING['gpt-4o'];
+      const cost = (pTokens / 1_000_000) * pricing.input + (cTokens / 1_000_000) * pricing.output;
+      totalCost += cost;
       
       const date = data.date || data.createdAt?.split('T')[0];
       if (date) {
-        dailyData[date] = (dailyData[date] || 0) + (data.totalTokens || 0);
+        if (!dailyData[date]) {
+          dailyData[date] = { tokens: 0, cost: 0 };
+        }
+        dailyData[date].tokens += tTokens;
+        dailyData[date].cost += cost;
       }
     });
 
@@ -314,7 +342,8 @@ export const getTokenUsageStats = async () => {
       const formattedDate = d.toLocaleDateString('tr-TR', { month: 'short', day: 'numeric' });
       return {
         date: formattedDate,
-        tokens: dailyData[date]
+        tokens: dailyData[date].tokens,
+        cost: Number(dailyData[date].cost.toFixed(4))
       };
     });
 
@@ -322,6 +351,7 @@ export const getTokenUsageStats = async () => {
       totalPromptTokens,
       totalCompletionTokens,
       totalTokens,
+      totalCost,
       chartData
     };
   } catch (error) {
@@ -330,6 +360,7 @@ export const getTokenUsageStats = async () => {
       totalPromptTokens: 0,
       totalCompletionTokens: 0,
       totalTokens: 0,
+      totalCost: 0,
       chartData: []
     };
   }
