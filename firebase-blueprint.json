@@ -167,6 +167,21 @@
           "description": "The date string for daily records (YYYY-MM-DD)."
         }
       }
+    },
+    "TokenUsage": {
+      "title": "Token Usage",
+      "description": "Stores OpenAI API token usage.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "promptTokens": { "type": "number" },
+        "completionTokens": { "type": "number" },
+        "totalTokens": { "type": "number" },
+        "model": { "type": "string" },
+        "action": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "date": { "type": "string" }
+      }
     }
   },
   "firestore": {
@@ -193,6 +208,12 @@
         "$ref": "#/entities/Analytics"
       },
       "description": "Stores global and daily visit analytics."
+    },
+    "/token_usage/{usageId}": {
+      "schema": {
+        "$ref": "#/entities/TokenUsage"
+      },
+      "description": "Stores OpenAI API token usage."
     }
   }
 }

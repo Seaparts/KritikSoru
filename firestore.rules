@@ -204,5 +204,10 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    match /token_usage/{usageId} {
+      allow read: if isAdmin();
+      allow write: if true; // Backend uses admin SDK, but just in case
+    }
+
   }
 }

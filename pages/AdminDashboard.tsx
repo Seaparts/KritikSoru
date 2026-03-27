@@ -6,7 +6,7 @@ import {
   CreditCard, AlertCircle, Lock, Eye, UserCheck
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchUsers, UserItem, fetchAllQuestions, QuestionHistoryItem, getAnalytics } from '../services/api';
+import { fetchUsers, UserItem, fetchAllQuestions, QuestionHistoryItem, getAnalytics, getTokenUsageStats } from '../services/api';
 
 // --- MOCK DATA ---
 
@@ -87,6 +87,12 @@ const AdminDashboard: React.FC = () => {
     todayVisits: 0,
     todayLoggedInVisits: 0
   });
+  const [tokenStats, setTokenStats] = useState({
+    totalPromptTokens: 0,
+    totalCompletionTokens: 0,
+    totalTokens: 0,
+    chartData: [] as any[]
+  });
   const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
@@ -98,14 +104,16 @@ const AdminDashboard: React.FC = () => {
   const loadData = async () => {
     setLoadingData(true);
     try {
-      const [users, questions, analytics] = await Promise.all([
+      const [users, questions, analytics, tokens] = await Promise.all([
         fetchUsers(),
         fetchAllQuestions(),
-        getAnalytics()
+        getAnalytics(),
+        getTokenUsageStats()
       ]);
       setUsersList(users);
       setQuestionsList(questions);
       setAnalyticsData(analytics);
+      setTokenStats(tokens);
     } catch (error) {
       console.error("Error loading admin data:", error);
     } finally {
@@ -337,16 +345,16 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
                 <div className="text-xs text-slate-500 mb-1">Harcanan Token</div>
-                <div className="text-xl font-bold text-white">12,450,000</div>
+                <div className="text-xl font-bold text-white">{tokenStats.totalTokens.toLocaleString('tr-TR')}</div>
               </div>
               <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
                 <div className="text-xs text-slate-500 mb-1">Kalan Token (Tahmini)</div>
-                <div className="text-xl font-bold text-emerald-400">32,780,000</div>
+                <div className="text-xl font-bold text-emerald-400">{(45230000 - tokenStats.totalTokens).toLocaleString('tr-TR')}</div>
               </div>
             </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={tokenUsageData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={tokenStats.chartData.length > 0 ? tokenStats.chartData : tokenUsageData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorTokens" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>

@@ -125,7 +125,26 @@ async function sendWhatsAppImage(to: string, imageUrl: string): Promise<boolean>
   }
 }
 
-async function extractTextFromWhatsAppImage(imageId: string): Promise<string> {
+async function saveTokenUsage(uid: string, usage: any, model: string, action: string) {
+  if (!db) return;
+  try {
+    const date = new Date().toISOString().split('T')[0];
+    await db.collection('token_usage').add({
+      uid,
+      promptTokens: usage.prompt_tokens || 0,
+      completionTokens: usage.completion_tokens || 0,
+      totalTokens: usage.total_tokens || 0,
+      model,
+      action,
+      createdAt: new Date().toISOString(),
+      date
+    });
+  } catch (error) {
+    console.error("Error saving token usage:", error);
+  }
+}
+
+async function extractTextFromWhatsAppImage(imageId: string, uid: string): Promise<string> {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   if (!token) {
     console.error("WHATSAPP_ACCESS_TOKEN is missing.");
@@ -176,6 +195,10 @@ async function extractTextFromWhatsAppImage(imageId: string): Promise<string> {
       ]
     });
 
+    if (aiResponse.usage) {
+      await saveTokenUsage(uid, aiResponse.usage, "gpt-4o", "extract_text");
+    }
+
     return aiResponse.choices[0].message.content || "";
   } catch (error) {
     console.error("Error extracting text from image:", error);
@@ -186,7 +209,7 @@ async function extractTextFromWhatsAppImage(imageId: string): Promise<string> {
 // ============================================================================
 // OPENAI LOGIC
 // ============================================================================
-async function analyzeQuestion(text: string): Promise<{ isQuestion: boolean, difficulty: number, examType: string, subject: string, topic: string }> {
+async function analyzeQuestion(text: string, uid: string): Promise<{ isQuestion: boolean, difficulty: number, examType: string, subject: string, topic: string }> {
   const ai = getOpenAI();
   if (!ai) return { isQuestion: true, difficulty: 2, examType: "Genel", subject: "Soru", topic: "Genel" };
 
@@ -210,6 +233,10 @@ async function analyzeQuestion(text: string): Promise<{ isQuestion: boolean, dif
       response_format: { type: "json_object" }
     });
 
+    if (response.usage) {
+      await saveTokenUsage(uid, response.usage, "gpt-4o-mini", "analyze_question");
+    }
+
     const result = JSON.parse(response.choices[0].message.content || "{}");
     return {
       isQuestion: result.isQuestion || false,
@@ -224,7 +251,7 @@ async function analyzeQuestion(text: string): Promise<{ isQuestion: boolean, dif
   }
 }
 
-async function solveQuestion(text: string, difficulty: number): Promise<string> {
+async function solveQuestion(text: string, difficulty: number, uid: string): Promise<string> {
   const ai = getOpenAI();
   if (!ai) return "Bu sorunun çözümü: 2x = 10, x = 5. (Mock Çözüm)";
 
@@ -246,6 +273,10 @@ async function solveQuestion(text: string, difficulty: number): Promise<string> 
       ]
     });
 
+    if (response.usage) {
+      await saveTokenUsage(uid, response.usage, modelToUse, "solve_question");
+    }
+
     return response.choices[0].message.content || "Çözüm üretilemedi.";
   } catch (error) {
     console.error(`Error solving question with model ${modelToUse}:`, error);
@@ -261,6 +292,11 @@ async function solveQuestion(text: string, difficulty: number): Promise<string> 
           { role: "user", content: text }
         ]
       });
+      
+      if (fallbackResponse.usage) {
+        await saveTokenUsage(uid, fallbackResponse.usage, "gpt-4o", "solve_question_fallback");
+      }
+
       return fallbackResponse.choices[0].message.content || "Çözüm üretilemedi.";
     } catch (fallbackError) {
       return "Çözüm sırasında bir hata oluştu.";
@@ -508,7 +544,7 @@ async function processWhatsAppMessage(msg: any, baseUrl: string) {
     } else if (msg.type === "image" && msg.image && msg.image.id) {
       const imageId = msg.image.id;
       // Görseli metne çevir
-      questionText = await extractTextFromWhatsAppImage(imageId);
+      questionText = await extractTextFromWhatsAppImage(imageId, uid);
     } else {
       console.log("Unsupported message type or missing content:", msg);
       await sendWhatsAppMessage(phone, "Şu anda sadece metin ve görsel mesajları destekliyoruz.");
@@ -524,7 +560,7 @@ async function processWhatsAppMessage(msg: any, baseUrl: string) {
     }
 
     // Metin bir tyt, ayt ve lgs sınav sorusu içeriyor mu GPT-4o mini ile kontrol et.
-    const analysis = await analyzeQuestion(questionText);
+    const analysis = await analyzeQuestion(questionText, uid);
     
     if (!analysis.isQuestion) {
       await sendWhatsAppMessage(phone, "Soru bulunamadı. www.kritiksoru.com");
@@ -532,7 +568,7 @@ async function processWhatsAppMessage(msg: any, baseUrl: string) {
     }
 
     // Soru çözüm promtunu çalıştır
-    const solutionText = await solveQuestion(questionText, analysis.difficulty);
+    const solutionText = await solveQuestion(questionText, analysis.difficulty, uid);
 
     // Soru çözümünü metnini görsel üretim promptunu kullanarak görsele dönüştür & Firebase Storage'a yükle
     const solutionImageUrl = await generateAndUploadImage(solutionText, baseUrl);

@@ -285,3 +285,52 @@ export const getAnalytics = async () => {
     };
   }
 };
+
+export const getTokenUsageStats = async () => {
+  try {
+    const usageRef = collection(db, 'token_usage');
+    const snapshot = await getDocs(usageRef);
+    
+    let totalPromptTokens = 0;
+    let totalCompletionTokens = 0;
+    let totalTokens = 0;
+    
+    const dailyData: Record<string, number> = {};
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      totalPromptTokens += data.promptTokens || 0;
+      totalCompletionTokens += data.completionTokens || 0;
+      totalTokens += data.totalTokens || 0;
+      
+      const date = data.date || data.createdAt?.split('T')[0];
+      if (date) {
+        dailyData[date] = (dailyData[date] || 0) + (data.totalTokens || 0);
+      }
+    });
+
+    const chartData = Object.keys(dailyData).sort().map(date => {
+      const d = new Date(date);
+      const formattedDate = d.toLocaleDateString('tr-TR', { month: 'short', day: 'numeric' });
+      return {
+        date: formattedDate,
+        tokens: dailyData[date]
+      };
+    });
+
+    return {
+      totalPromptTokens,
+      totalCompletionTokens,
+      totalTokens,
+      chartData
+    };
+  } catch (error) {
+    console.error("Error getting token usage stats:", error);
+    return {
+      totalPromptTokens: 0,
+      totalCompletionTokens: 0,
+      totalTokens: 0,
+      chartData: []
+    };
+  }
+};
