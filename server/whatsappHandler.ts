@@ -78,8 +78,8 @@ async function sendWhatsAppImage(to: string, imageUrl: string): Promise<boolean>
 
     // 2. Upload the image to WhatsApp Media API
     const formData = new FormData();
-    const file = new File([buffer], fileName, { type: 'image/png' });
-    formData.append('file', file);
+    const blob = new Blob([buffer], { type: 'image/png' });
+    formData.append('file', blob, fileName);
     formData.append('type', 'image/png');
     formData.append('messaging_product', 'whatsapp');
 
@@ -251,9 +251,9 @@ async function analyzeQuestion(text: string, uid: string): Promise<{ isQuestion:
   }
 }
 
-async function solveQuestion(text: string, difficulty: number, uid: string): Promise<string> {
+async function solveQuestion(text: string, difficulty: number, uid: string): Promise<{text: string, model: string}> {
   const ai = getOpenAI();
-  if (!ai) return "Bu sorunun çözümü: 2x = 10, x = 5. (Mock Çözüm)";
+  if (!ai) return { text: "Bu sorunun çözümü: 2x = 10, x = 5. (Mock Çözüm)", model: "mock" };
 
   let modelToUse = "gpt-5-nano";
   if (difficulty === 1) modelToUse = "gpt-5-nano";
@@ -277,7 +277,7 @@ async function solveQuestion(text: string, difficulty: number, uid: string): Pro
       await saveTokenUsage(uid, response.usage, modelToUse, "solve_question");
     }
 
-    return response.choices[0].message.content || "Çözüm üretilemedi.";
+    return { text: response.choices[0].message.content || "Çözüm üretilemedi.", model: modelToUse };
   } catch (error) {
     console.error(`Error solving question with model ${modelToUse}:`, error);
     // Fallback to gpt-4o if the requested model doesn't exist yet (like gpt-4.1 or gpt-5)
@@ -297,9 +297,9 @@ async function solveQuestion(text: string, difficulty: number, uid: string): Pro
         await saveTokenUsage(uid, fallbackResponse.usage, "gpt-4o", "solve_question_fallback");
       }
 
-      return fallbackResponse.choices[0].message.content || "Çözüm üretilemedi.";
+      return { text: fallbackResponse.choices[0].message.content || "Çözüm üretilemedi.", model: "gpt-4o" };
     } catch (fallbackError) {
-      return "Çözüm sırasında bir hata oluştu.";
+      return { text: "Çözüm sırasında bir hata oluştu.", model: "error" };
     }
   }
 }
@@ -308,34 +308,57 @@ async function generateAndUploadImage(solutionText: string, baseUrl: string): Pr
   try {
     // 1. Find the image starting with 'generated' in the root directory
     const files = fs.readdirSync(process.cwd());
-    const generatedImageFile = files.find(file => file.startsWith('generated') && (file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg')));
+    const generatedImageFile = files.find(file => file.toLowerCase().startsWith('generated') && (file.toLowerCase().endsWith('.png') || file.toLowerCase().endsWith('.jpg') || file.toLowerCase().endsWith('.jpeg')));
     
     let bgImage;
+    let canvasWidth = 1080;
+    let canvasHeight = 1920;
+
     if (generatedImageFile) {
       const imagePath = path.join(process.cwd(), generatedImageFile);
       const stats = fs.statSync(imagePath);
-      if (stats.size === 0) {
-        throw new Error(`Background image ${generatedImageFile} is empty (0 bytes). Please upload a valid image.`);
+      if (stats.size > 0) {
+        const imageBuffer = fs.readFileSync(imagePath);
+        bgImage = await loadImage(imageBuffer);
+        canvasWidth = bgImage.width;
+        canvasHeight = bgImage.height;
+      } else {
+        console.warn(`Background image ${generatedImageFile} is empty (0 bytes). Using fallback background.`);
       }
-      const imageBuffer = fs.readFileSync(imagePath);
-      bgImage = await loadImage(imageBuffer);
     } else {
-      throw new Error("Background image starting with 'generated' not found. Please upload it to the root directory.");
+      console.warn("Background image starting with 'generated' not found. Using fallback background.");
     }
 
     // 3. Create Canvas and draw background
-    const canvas = createCanvas(bgImage.width, bgImage.height);
+    const canvas = createCanvas(canvasWidth, canvasHeight);
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(bgImage, 0, 0, bgImage.width, bgImage.height);
+    
+    if (bgImage) {
+      ctx.drawImage(bgImage, 0, 0, canvasWidth, canvasHeight);
+    } else {
+      // Fallback background if image is missing or empty
+      ctx.fillStyle = '#f4f4f9'; // Light gray/blueish background
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      
+      // Draw some notebook lines
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.lineWidth = 2;
+      for (let y = 100; y < canvasHeight; y += 52) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvasWidth, y);
+        ctx.stroke();
+      }
+    }
 
     // 4. Configure text rendering
-    ctx.font = 'bold 36px Arial'; // Use standard font
+    ctx.font = 'bold 36px sans-serif'; // Use standard font
     ctx.fillStyle = '#000000'; // Black text for better visibility
     
     // Adjust margins based on the notebook image structure
-    const marginX = bgImage.width * 0.18; // 18% from left
-    const marginY = bgImage.height * 0.20; // 20% from top
-    const maxWidth = bgImage.width - (marginX * 2);
+    const marginX = bgImage ? canvasWidth * 0.18 : canvasWidth * 0.10;
+    const marginY = bgImage ? canvasHeight * 0.20 : canvasHeight * 0.15;
+    const maxWidth = canvasWidth - (marginX * 2);
     const lineHeight = 52;
 
     // 5. Wrap and draw text
@@ -559,7 +582,7 @@ async function processWhatsAppMessage(msg: any, baseUrl: string) {
     }
 
     // Soru çözüm promtunu çalıştır
-    const solutionText = await solveQuestion(questionText, analysis.difficulty, uid);
+    const { text: solutionText, model: usedModel } = await solveQuestion(questionText, analysis.difficulty, uid);
 
     // Soru çözümünü metnini görsel üretim promptunu kullanarak görsele dönüştür & Firebase Storage'a yükle
     const solutionImageUrl = await generateAndUploadImage(solutionText, baseUrl);
@@ -582,7 +605,7 @@ async function processWhatsAppMessage(msg: any, baseUrl: string) {
       answerText: solutionText,
       imageUrl: solutionImageUrl,
       status: 'solved',
-      model: 'gpt-4o',
+      model: usedModel,
       cost: 1,
       examType: analysis.examType,
       subject: analysis.subject,
