@@ -78,8 +78,8 @@ async function sendWhatsAppImage(to: string, imageUrl: string): Promise<boolean>
 
     // 2. Upload the image to WhatsApp Media API
     const formData = new FormData();
-    const blob = new Blob([buffer], { type: 'image/png' });
-    formData.append('file', blob, fileName);
+    const file = new File([buffer], fileName, { type: 'image/png' });
+    formData.append('file', file);
     formData.append('type', 'image/png');
     formData.append('messaging_product', 'whatsapp');
 
@@ -313,11 +313,14 @@ async function generateAndUploadImage(solutionText: string, baseUrl: string): Pr
     let bgImage;
     if (generatedImageFile) {
       const imagePath = path.join(process.cwd(), generatedImageFile);
+      const stats = fs.statSync(imagePath);
+      if (stats.size === 0) {
+        throw new Error(`Background image ${generatedImageFile} is empty (0 bytes). Please upload a valid image.`);
+      }
       const imageBuffer = fs.readFileSync(imagePath);
       bgImage = await loadImage(imageBuffer);
     } else {
-      console.error("Background image starting with 'generated' not found. Please upload it to the root directory.");
-      return "https://picsum.photos/seed/error/800/600";
+      throw new Error("Background image starting with 'generated' not found. Please upload it to the root directory.");
     }
 
     // 3. Create Canvas and draw background
