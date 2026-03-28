@@ -1,9 +1,22 @@
 import { Request, Response } from 'express';
 import OpenAI from 'openai';
 import { db, storage } from './firebaseAdmin';
-import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
 import fs from 'fs';
 import path from 'path';
+
+// Register font for canvas
+try {
+  const fontPath = path.join(process.cwd(), 'Roboto-Regular.ttf');
+  if (fs.existsSync(fontPath)) {
+    GlobalFonts.registerFromPath(fontPath, 'Roboto');
+    console.log("Successfully registered Roboto font for canvas.");
+  } else {
+    console.warn("Roboto-Regular.ttf not found. Canvas text rendering might fail on some systems.");
+  }
+} catch (e) {
+  console.error("Failed to register font:", e);
+}
 
 // Initialize OpenAI
 let openai: OpenAI | null = null;
@@ -352,7 +365,7 @@ async function generateAndUploadImage(solutionText: string, baseUrl: string): Pr
     }
 
     // 4. Configure text rendering
-    ctx.font = 'bold 36px sans-serif'; // Use standard font
+    ctx.font = 'bold 36px Roboto'; // Use registered font
     ctx.fillStyle = '#000000'; // Black text for better visibility
     
     // Adjust margins based on the notebook image structure
@@ -410,9 +423,9 @@ async function generateAndUploadImage(solutionText: string, baseUrl: string): Pr
     console.log("Successfully saved canvas image locally:", finalUrl);
     return finalUrl;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating/uploading image:", error);
-    return "";
+    return `ERROR: ${error.message || String(error)}`;
   }
 }
 
@@ -588,14 +601,15 @@ async function processWhatsAppMessage(msg: any, baseUrl: string) {
     const solutionImageUrl = await generateAndUploadImage(solutionText, baseUrl);
 
     // Görseli whatsapp'tan kullanıcıya gönder.
-    if (solutionImageUrl) {
+    if (solutionImageUrl && !solutionImageUrl.startsWith('ERROR:')) {
       const success = await sendWhatsAppImage(phone, solutionImageUrl);
       if (!success) {
         await sendWhatsAppMessage(phone, "Görsel gönderilirken bir hata oluştu. Çözüm:\n\n" + solutionText);
       }
     } else {
       // Görsel oluşturulamadıysa veya yüklenemediyse metin olarak gönder
-      await sendWhatsAppMessage(phone, "Görsel oluşturulurken bir hata oluştu. Çözüm:\n\n" + solutionText);
+      const errMsg = solutionImageUrl.startsWith('ERROR:') ? solutionImageUrl : "Bilinmeyen hata";
+      await sendWhatsAppMessage(phone, `Görsel oluşturulurken bir hata oluştu (${errMsg}). Çözüm:\n\n` + solutionText);
     }
 
     // Save the question to Firestore
