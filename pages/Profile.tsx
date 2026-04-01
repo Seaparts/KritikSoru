@@ -202,15 +202,6 @@ const QuestionHistoryTab: React.FC<{ data: QuestionHistoryItem[]; loading: boole
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const currentData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch (e) {
-      return dateString;
-    }
-  };
-
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
   };
@@ -243,7 +234,7 @@ const QuestionHistoryTab: React.FC<{ data: QuestionHistoryItem[]; loading: boole
                 </div>
                 <div className="text-right flex items-center gap-4">
                   <div>
-                    <div className="text-slate-800 font-medium text-sm mb-1">{formatDate(item.date)}</div>
+                    <div className="text-slate-800 font-medium text-sm mb-1">{item.date}</div>
                     <div className="text-slate-500 text-sm font-medium">
                       {item.status === 'solved' ? 'Çözüldü' : 'Bekliyor'}
                     </div>
@@ -325,25 +316,6 @@ const PaymentHistoryTab: React.FC<{ data: PaymentHistoryItem[]; loading: boolean
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const currentData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch (e) {
-      return dateString;
-    }
-  };
-
-  const formatTime = (dateString: string) => {
-    try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return '';
-        return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-    } catch (e) {
-        return '';
-    }
-  }
-
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* List */}
@@ -360,7 +332,7 @@ const PaymentHistoryTab: React.FC<{ data: PaymentHistoryItem[]; loading: boolean
               <div>
                 <h3 className="font-bold text-slate-800 text-lg mb-1">{item.planName}</h3>
                 <p className="text-slate-500 text-sm font-medium">
-                  {formatDate(item.date)} {formatTime(item.date)}
+                  {item.date}
                 </p>
               </div>
               <div className="text-right">
