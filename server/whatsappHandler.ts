@@ -91,9 +91,11 @@ async function sendWhatsAppImage(to: string, imageUrl: string): Promise<boolean>
 
     // 2. Upload the image to WhatsApp Media API
     const formData = new FormData();
-    const blob = new Blob([buffer], { type: 'image/png' });
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const blob = new Blob([buffer], { type: mimeType });
     formData.append('file', blob, fileName);
-    formData.append('type', 'image/png');
+    formData.append('type', mimeType);
     formData.append('messaging_product', 'whatsapp');
 
     const uploadResponse = await fetch(`https://graph.facebook.com/v17.0/${phoneId}/media`, {
@@ -138,6 +140,25 @@ async function sendWhatsAppImage(to: string, imageUrl: string): Promise<boolean>
   }
 }
 
+const MODEL_PRICING: Record<string, { input: number, output: number }> = {
+  'gpt-5.4': { input: 2.50, output: 15.00 },
+  'gpt-5.2': { input: 1.75, output: 14.00 },
+  'gpt-5.1': { input: 1.25, output: 10.00 },
+  'gpt-5': { input: 1.25, output: 10.00 },
+  'gpt-5-mini': { input: 0.25, output: 2.00 },
+  'gpt-5-nano': { input: 0.05, output: 0.40 },
+  'gpt-4o': { input: 2.50, output: 10.00 },
+  'gpt-4o-mini': { input: 0.15, output: 0.60 },
+  'gpt-4.1': { input: 2.00, output: 8.00 },
+  'gpt-4.1-mini': { input: 0.80, output: 3.20 },
+  'gpt-4.1-nano': { input: 0.20, output: 0.80 },
+};
+
+function calculateCost(model: string, promptTokens: number, completionTokens: number): number {
+  const pricing = MODEL_PRICING[model] || MODEL_PRICING['gpt-4o'];
+  return (promptTokens / 1_000_000) * pricing.input + (completionTokens / 1_000_000) * pricing.output;
+}
+
 async function saveTokenUsage(uid: string, usage: any, model: string, action: string) {
   if (!db) return;
   try {
@@ -157,11 +178,11 @@ async function saveTokenUsage(uid: string, usage: any, model: string, action: st
   }
 }
 
-async function extractTextFromWhatsAppImage(imageId: string, uid: string): Promise<string> {
+async function extractTextFromWhatsAppImage(imageId: string, uid: string): Promise<{ text: string, cost: number }> {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   if (!token) {
     console.error("WHATSAPP_ACCESS_TOKEN is missing.");
-    return "";
+    return { text: "", cost: 0 };
   }
 
   try {
@@ -173,7 +194,7 @@ async function extractTextFromWhatsAppImage(imageId: string, uid: string): Promi
     
     if (!urlData.url) {
       console.error("Failed to get image URL from WhatsApp:", urlData);
-      return "";
+      return { text: "", cost: 0 };
     }
 
     // 2. Download the image data
@@ -187,7 +208,7 @@ async function extractTextFromWhatsAppImage(imageId: string, uid: string): Promi
 
     // 3. Send to OpenAI GPT-4o Vision
     const ai = getOpenAI();
-    if (!ai) return "OpenAI API key missing.";
+    if (!ai) return { text: "OpenAI API key missing.", cost: 0 };
 
     const aiResponse = await ai.chat.completions.create({
       model: "gpt-4o",
@@ -208,23 +229,25 @@ async function extractTextFromWhatsAppImage(imageId: string, uid: string): Promi
       ]
     });
 
+    let cost = 0;
     if (aiResponse.usage) {
       await saveTokenUsage(uid, aiResponse.usage, "gpt-4o", "extract_text");
+      cost = calculateCost("gpt-4o", aiResponse.usage.prompt_tokens || 0, aiResponse.usage.completion_tokens || 0);
     }
 
-    return aiResponse.choices[0].message.content || "";
+    return { text: aiResponse.choices[0].message.content || "", cost };
   } catch (error) {
     console.error("Error extracting text from image:", error);
-    return "";
+    return { text: "", cost: 0 };
   }
 }
 
 // ============================================================================
 // OPENAI LOGIC
 // ============================================================================
-async function analyzeQuestion(text: string, uid: string): Promise<{ isQuestion: boolean, difficulty: number, examType: string, subject: string, topic: string }> {
+async function analyzeQuestion(text: string, uid: string): Promise<{ isQuestion: boolean, difficulty: number, examType: string, subject: string, topic: string, cost: number }> {
   const ai = getOpenAI();
-  if (!ai) return { isQuestion: true, difficulty: 2, examType: "Genel", subject: "Soru", topic: "Genel" };
+  if (!ai) return { isQuestion: true, difficulty: 2, examType: "Genel", subject: "Soru", topic: "Genel", cost: 0 };
 
   try {
     const response = await ai.chat.completions.create({
@@ -246,8 +269,10 @@ async function analyzeQuestion(text: string, uid: string): Promise<{ isQuestion:
       response_format: { type: "json_object" }
     });
 
+    let cost = 0;
     if (response.usage) {
       await saveTokenUsage(uid, response.usage, "gpt-5-nano", "analyze_question");
+      cost = calculateCost("gpt-5-nano", response.usage.prompt_tokens || 0, response.usage.completion_tokens || 0);
     }
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
@@ -256,17 +281,18 @@ async function analyzeQuestion(text: string, uid: string): Promise<{ isQuestion:
       difficulty: result.difficulty || 1,
       examType: result.examType || "Genel",
       subject: result.subject || "Soru",
-      topic: result.topic || "Genel"
+      topic: result.topic || "Genel",
+      cost
     };
   } catch (error) {
     console.error("Error analyzing question:", error);
-    return { isQuestion: false, difficulty: 1, examType: "Genel", subject: "Soru", topic: "Genel" };
+    return { isQuestion: false, difficulty: 1, examType: "Genel", subject: "Soru", topic: "Genel", cost: 0 };
   }
 }
 
-async function solveQuestion(text: string, difficulty: number, uid: string): Promise<{text: string, model: string}> {
+async function solveQuestion(text: string, difficulty: number, uid: string): Promise<{text: string, model: string, cost: number}> {
   const ai = getOpenAI();
-  if (!ai) return { text: "Bu sorunun çözümü: 2x = 10, x = 5. (Mock Çözüm)", model: "mock" };
+  if (!ai) return { text: "Bu sorunun çözümü: 2x = 10, x = 5. (Mock Çözüm)", model: "mock", cost: 0 };
 
   let modelToUse = "gpt-5-nano";
   if (difficulty === 1) modelToUse = "gpt-5-nano";
@@ -286,11 +312,13 @@ async function solveQuestion(text: string, difficulty: number, uid: string): Pro
       ]
     });
 
+    let cost = 0;
     if (response.usage) {
       await saveTokenUsage(uid, response.usage, modelToUse, "solve_question");
+      cost = calculateCost(modelToUse, response.usage.prompt_tokens || 0, response.usage.completion_tokens || 0);
     }
 
-    return { text: response.choices[0].message.content || "Çözüm üretilemedi.", model: modelToUse };
+    return { text: response.choices[0].message.content || "Çözüm üretilemedi.", model: modelToUse, cost };
   } catch (error) {
     console.error(`Error solving question with model ${modelToUse}:`, error);
     // Fallback to gpt-4o if the requested model doesn't exist yet (like gpt-4.1 or gpt-5)
@@ -306,19 +334,22 @@ async function solveQuestion(text: string, difficulty: number, uid: string): Pro
         ]
       });
       
+      let fallbackCost = 0;
       if (fallbackResponse.usage) {
         await saveTokenUsage(uid, fallbackResponse.usage, "gpt-4o", "solve_question_fallback");
+        fallbackCost = calculateCost("gpt-4o", fallbackResponse.usage.prompt_tokens || 0, fallbackResponse.usage.completion_tokens || 0);
       }
 
-      return { text: fallbackResponse.choices[0].message.content || "Çözüm üretilemedi.", model: "gpt-4o" };
+      return { text: fallbackResponse.choices[0].message.content || "Çözüm üretilemedi.", model: "gpt-4o", cost: fallbackCost };
     } catch (fallbackError) {
-      return { text: "Çözüm sırasında bir hata oluştu.", model: "error" };
+      return { text: "Çözüm sırasında bir hata oluştu.", model: "error", cost: 0 };
     }
   }
 }
 
-async function generateAndUploadImage(solutionText: string, baseUrl: string): Promise<string> {
+export async function generateAndUploadImage(solutionText: string, baseUrl: string): Promise<string> {
   try {
+    console.log("Starting generateAndUploadImage...");
     // 1. Find the image starting with 'generated' in the root directory
     const files = fs.readdirSync(process.cwd());
     const generatedImageFile = files.find(file => file.toLowerCase().startsWith('generated') && (file.toLowerCase().endsWith('.png') || file.toLowerCase().endsWith('.jpg') || file.toLowerCase().endsWith('.jpeg')));
@@ -328,13 +359,23 @@ async function generateAndUploadImage(solutionText: string, baseUrl: string): Pr
     let canvasHeight = 1920;
 
     if (generatedImageFile) {
+      console.log(`Found background image file: ${generatedImageFile}`);
       const imagePath = path.join(process.cwd(), generatedImageFile);
       const stats = fs.statSync(imagePath);
       if (stats.size > 0) {
-        const imageBuffer = fs.readFileSync(imagePath);
-        bgImage = await loadImage(imageBuffer);
-        canvasWidth = bgImage.width;
-        canvasHeight = bgImage.height;
+        try {
+          console.log(`Reading image file: ${imagePath}`);
+          const imageBuffer = fs.readFileSync(imagePath);
+          console.log(`Calling loadImage with buffer of size ${imageBuffer.length}...`);
+          bgImage = await loadImage(imageBuffer);
+          console.log("loadImage succeeded.");
+          canvasWidth = bgImage.width;
+          canvasHeight = bgImage.height;
+        } catch (imgError) {
+          console.error(`Failed to load background image ${generatedImageFile}:`, imgError);
+          console.warn("Using fallback background due to image load error.");
+          bgImage = undefined; // Force fallback
+        }
       } else {
         console.warn(`Background image ${generatedImageFile} is empty (0 bytes). Using fallback background.`);
       }
@@ -342,13 +383,23 @@ async function generateAndUploadImage(solutionText: string, baseUrl: string): Pr
       console.warn("Background image starting with 'generated' not found. Using fallback background.");
     }
 
+    console.log("Creating canvas...");
     // 3. Create Canvas and draw background
     const canvas = createCanvas(canvasWidth, canvasHeight);
     const ctx = canvas.getContext('2d');
     
     if (bgImage) {
-      ctx.drawImage(bgImage, 0, 0, canvasWidth, canvasHeight);
+      console.log("Drawing background image...");
+      try {
+        ctx.drawImage(bgImage, 0, 0, canvasWidth, canvasHeight);
+      } catch (drawError) {
+        console.error("Failed to draw background image:", drawError);
+        console.warn("Falling back to solid background.");
+        ctx.fillStyle = '#f4f4f9';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      }
     } else {
+      console.log("Drawing fallback background...");
       // Fallback background if image is missing or empty
       ctx.fillStyle = '#f4f4f9'; // Light gray/blueish background
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -364,6 +415,7 @@ async function generateAndUploadImage(solutionText: string, baseUrl: string): Pr
       }
     }
 
+    console.log("Configuring text rendering...");
     // 4. Configure text rendering
     ctx.font = 'bold 36px Roboto'; // Use registered font
     ctx.fillStyle = '#000000'; // Black text for better visibility
@@ -374,6 +426,7 @@ async function generateAndUploadImage(solutionText: string, baseUrl: string): Pr
     const maxWidth = canvasWidth - (marginX * 2);
     const lineHeight = 52;
 
+    console.log("Wrapping and drawing text...");
     // 5. Wrap and draw text
     const paragraphs = solutionText.split('\n');
     let currentY = marginY;
@@ -405,11 +458,23 @@ async function generateAndUploadImage(solutionText: string, baseUrl: string): Pr
       currentY += lineHeight;
     }
 
-    const finalBuffer = canvas.toBuffer('image/png');
-    console.log("Canvas text drawing completed. Buffer size:", finalBuffer.length);
+    console.log("Calling canvas.toBuffer...");
+    let finalBuffer;
+    let isJpeg = false;
+    try {
+      finalBuffer = canvas.toBuffer('image/png');
+      console.log("Canvas text drawing completed (PNG). Buffer size:", finalBuffer.length);
+    } catch (pngError: any) {
+      console.warn("Failed to generate PNG buffer, falling back to JPEG:", pngError);
+      finalBuffer = canvas.toBuffer('image/jpeg');
+      isJpeg = true;
+      console.log("Canvas text drawing completed (JPEG). Buffer size:", finalBuffer.length);
+    }
 
+    console.log("Saving locally...");
     // 6. Save locally and return URL
-    const fileName = `solution_${Date.now()}.png`;
+    const ext = isJpeg ? 'jpg' : 'png';
+    const fileName = `solution_${Date.now()}.${ext}`;
     const solutionsDir = path.join(process.cwd(), 'solutions');
     if (!fs.existsSync(solutionsDir)) {
       fs.mkdirSync(solutionsDir);
@@ -425,6 +490,7 @@ async function generateAndUploadImage(solutionText: string, baseUrl: string): Pr
 
   } catch (error: any) {
     console.error("Error generating/uploading image:", error);
+    console.error("Error stack:", error.stack);
     return `ERROR: ${error.message || String(error)}`;
   }
 }
@@ -563,6 +629,7 @@ async function processWhatsAppMessage(msg: any, baseUrl: string) {
 
     // 3. Gelen mesajın metin mi görsel mi olduğunun kontrolü.
     let questionText = "";
+    let totalCost = 0;
 
     console.log("Message Type:", msg.type);
 
@@ -571,7 +638,9 @@ async function processWhatsAppMessage(msg: any, baseUrl: string) {
     } else if (msg.type === "image" && msg.image && msg.image.id) {
       const imageId = msg.image.id;
       // Görseli metne çevir
-      questionText = await extractTextFromWhatsAppImage(imageId, uid);
+      const extractResult = await extractTextFromWhatsAppImage(imageId, uid);
+      questionText = extractResult.text;
+      totalCost += extractResult.cost;
     } else {
       console.log("Unsupported message type or missing content:", msg);
       await sendWhatsAppMessage(phone, "Şu anda sadece metin ve görsel mesajları destekliyoruz.");
@@ -588,6 +657,7 @@ async function processWhatsAppMessage(msg: any, baseUrl: string) {
 
     // Metin bir tyt, ayt ve lgs sınav sorusu içeriyor mu GPT-4o mini ile kontrol et.
     const analysis = await analyzeQuestion(questionText, uid);
+    totalCost += analysis.cost;
     
     if (!analysis.isQuestion) {
       await sendWhatsAppMessage(phone, "Soru bulunamadı. www.kritiksoru.com");
@@ -595,7 +665,8 @@ async function processWhatsAppMessage(msg: any, baseUrl: string) {
     }
 
     // Soru çözüm promtunu çalıştır
-    const { text: solutionText, model: usedModel } = await solveQuestion(questionText, analysis.difficulty, uid);
+    const { text: solutionText, model: usedModel, cost: solveCost } = await solveQuestion(questionText, analysis.difficulty, uid);
+    totalCost += solveCost;
 
     // Soru çözümünü metnini görsel üretim promptunu kullanarak görsele dönüştür & Firebase Storage'a yükle
     const solutionImageUrl = await generateAndUploadImage(solutionText, baseUrl);
@@ -620,7 +691,7 @@ async function processWhatsAppMessage(msg: any, baseUrl: string) {
       imageUrl: solutionImageUrl,
       status: 'solved',
       model: usedModel,
-      cost: 1,
+      cost: totalCost,
       examType: analysis.examType,
       subject: analysis.subject,
       topic: analysis.topic,

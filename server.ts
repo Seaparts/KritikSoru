@@ -26,6 +26,34 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  app.get("/api/system-health", (req, res) => {
+    const memoryUsage = process.memoryUsage();
+    
+    // Format uptime
+    const uptimeSeconds = Math.floor(process.uptime());
+    const days = Math.floor(uptimeSeconds / (3600 * 24));
+    const hours = Math.floor((uptimeSeconds % (3600 * 24)) / 3600);
+    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+    const seconds = uptimeSeconds % 60;
+    
+    let uptimeStr = "";
+    if (days > 0) uptimeStr += `${days}g `;
+    if (hours > 0) uptimeStr += `${hours}s `;
+    if (minutes > 0) uptimeStr += `${minutes}d `;
+    uptimeStr += `${seconds}sn`;
+
+    res.json({
+      status: "Online",
+      uptime: uptimeStr,
+      memoryRss: Math.round(memoryUsage.rss / 1024 / 1024),
+      heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+      heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+      nodeVersion: process.version,
+      environment: process.env.NODE_ENV || "development",
+      webhookActive: !!process.env.WHATSAPP_VERIFY_TOKEN
+    });
+  });
+
   // WhatsApp Webhook Routes
   app.get("/api/webhook/whatsapp", verifyWhatsAppWebhook);
   app.post("/api/webhook/whatsapp", handleWhatsAppWebhook);

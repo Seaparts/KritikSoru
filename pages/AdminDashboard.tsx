@@ -95,29 +95,57 @@ const AdminDashboard: React.FC = () => {
     totalCost: 0,
     chartData: [] as any[]
   });
+  const [systemHealth, setSystemHealth] = useState({
+    status: "Yükleniyor...",
+    uptime: "-",
+    memoryRss: 0,
+    heapUsed: 0,
+    heapTotal: 0,
+    nodeVersion: "-",
+    environment: "-",
+    webhookActive: false
+  });
   const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
       loadData();
+      
+      // Update system health every 10 seconds
+      const interval = setInterval(() => {
+        fetch('/api/system-health')
+          .then(res => res.json())
+          .then(data => setSystemHealth(data))
+          .catch(() => setSystemHealth(prev => ({ ...prev, status: "Bağlantı Hatası" })));
+      }, 10000);
+      
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
 
   const loadData = async () => {
     setLoadingData(true);
     try {
-      const [users, questions, analytics, tokens] = await Promise.all([
+      const [users, questions, analytics, tokens, healthRes] = await Promise.all([
         fetchUsers(),
         fetchAllQuestions(),
         getAnalytics(),
-        getTokenUsageStats()
+        getTokenUsageStats(),
+        fetch('/api/system-health').then(res => res.json()).catch(() => null)
       ]);
       setUsersList(users);
       setQuestionsList(questions);
       setAnalyticsData(analytics);
       setTokenStats(tokens);
+      if (healthRes) {
+        setSystemHealth(healthRes);
+        setIsHealthy(true);
+      } else {
+        setIsHealthy(false);
+      }
     } catch (error) {
       console.error("Error loading admin data:", error);
+      setIsHealthy(false);
     } finally {
       setLoadingData(false);
     }
@@ -442,7 +470,7 @@ const AdminDashboard: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 truncate max-w-[150px]">{questionTitle}</td>
                         <td className="px-4 py-3 text-xs">{q.model || 'gpt-4o'}</td>
-                        <td className="px-4 py-3 font-mono text-xs">${q.cost || 0}</td>
+                        <td className="px-4 py-3 font-mono text-xs">${Number(q.cost || 0).toFixed(4)}</td>
                         <td className="px-4 py-3 text-xs text-slate-500">{q.date}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${statusClass}`}>
@@ -475,26 +503,38 @@ const AdminDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
-                  {expensiveQuestions.map((q) => (
-                    <tr key={q.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs text-slate-400">{q.id}</td>
-                      <td className="px-4 py-3">{q.phone}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${q.channel === 'WhatsApp' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                          {q.channel}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 truncate max-w-[150px]">{q.question}</td>
-                      <td className="px-4 py-3 text-xs">{q.model}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-orange-400 font-bold">{q.cost}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{q.time}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${q.status === 'Çözüldü' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                          {q.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {[...questionsList]
+                    .sort((a, b) => (b.cost || 0) - (a.cost || 0))
+                    .slice(0, 10)
+                    .map((q) => {
+                      const user = usersList.find(u => u.id === q.uid);
+                      const phone = user?.phone || '-';
+                      const channel = 'WhatsApp';
+                      const questionTitle = `${q.subject} - ${q.topic}`;
+                      const statusText = q.status === 'solved' ? 'Çözüldü' : q.status === 'error' ? 'Hata' : 'Bekliyor';
+                      const statusClass = q.status === 'solved' ? 'bg-emerald-500/10 text-emerald-400' : q.status === 'error' ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400';
+                      
+                      return (
+                        <tr key={q.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="px-4 py-3 font-mono text-xs text-slate-400">{q.id.substring(0, 8)}</td>
+                          <td className="px-4 py-3">{phone}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${channel === 'WhatsApp' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                              {channel}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 truncate max-w-[150px]">{questionTitle}</td>
+                          <td className="px-4 py-3 text-xs">{q.model || 'gpt-4o'}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-orange-400 font-bold">${Number(q.cost || 0).toFixed(4)}</td>
+                          <td className="px-4 py-3 text-xs text-slate-500">{q.date}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${statusClass}`}>
+                              {statusText}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -551,56 +591,60 @@ const AdminDashboard: React.FC = () => {
                   <Activity className="w-4 h-4 text-slate-400" />
                   <span className="text-sm font-medium text-slate-300">Durum</span>
                 </div>
-                <span className="text-sm font-bold text-emerald-400">Online</span>
+                <span className={`text-sm font-bold ${systemHealth.status === 'Online' ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {systemHealth.status}
+                </span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-slate-400" />
                   <span className="text-sm font-medium text-slate-300">Uptime</span>
                 </div>
-                <span className="text-sm font-bold text-white font-mono">14g 6s 24d</span>
+                <span className="text-sm font-bold text-white font-mono">{systemHealth.uptime}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-slate-400" />
                   <span className="text-sm font-medium text-slate-300">Bellek (RSS)</span>
                 </div>
-                <span className="text-sm font-bold text-white font-mono">245 MB</span>
+                <span className="text-sm font-bold text-white font-mono">{systemHealth.memoryRss} MB</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
                 <div className="flex items-center gap-2">
                   <Cpu className="w-4 h-4 text-slate-400" />
                   <span className="text-sm font-medium text-slate-300">Heap Kullanımı</span>
                 </div>
-                <span className="text-sm font-bold text-white font-mono">128 MB / 512 MB</span>
+                <span className="text-sm font-bold text-white font-mono">{systemHealth.heapUsed} MB / {systemHealth.heapTotal} MB</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
                 <div className="flex items-center gap-2">
                   <Database className="w-4 h-4 text-slate-400" />
                   <span className="text-sm font-medium text-slate-300">DB Boyutu</span>
                 </div>
-                <span className="text-sm font-bold text-white font-mono">1.2 GB</span>
+                <span className="text-sm font-bold text-white font-mono">1.2 GB (Tahmini)</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="w-4 h-4 text-slate-400" />
                   <span className="text-sm font-medium text-slate-300">Webhook Logları</span>
                 </div>
-                <span className="text-sm font-bold text-emerald-400">Aktif</span>
+                <span className={`text-sm font-bold ${systemHealth.webhookActive ? 'text-emerald-400' : 'text-orange-400'}`}>
+                  {systemHealth.webhookActive ? 'Aktif' : 'Pasif'}
+                </span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
                 <div className="flex items-center gap-2">
                   <Server className="w-4 h-4 text-slate-400" />
                   <span className="text-sm font-medium text-slate-300">Node.js</span>
                 </div>
-                <span className="text-sm font-bold text-white font-mono">v20.11.0</span>
+                <span className="text-sm font-bold text-white font-mono">{systemHealth.nodeVersion}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-slate-400" />
                   <span className="text-sm font-medium text-slate-300">Ortam</span>
                 </div>
-                <span className="text-sm font-bold text-blue-400 uppercase tracking-wider">Production</span>
+                <span className="text-sm font-bold text-blue-400 uppercase tracking-wider">{systemHealth.environment}</span>
               </div>
             </div>
           </div>
