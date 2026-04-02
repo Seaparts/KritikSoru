@@ -10,34 +10,6 @@ import { fetchUsers, UserItem, fetchAllQuestions, QuestionHistoryItem, getAnalyt
 
 // --- MOCK DATA ---
 
-const tokenUsageData = Array.from({ length: 19 }).map((_, i) => ({
-  date: `Mar ${i + 1}`,
-  tokens: Math.floor(Math.random() * 50000) + 10000,
-  cost: Number((Math.random() * 5).toFixed(4))
-}));
-
-const recentQuestions = Array.from({ length: 10 }).map((_, i) => ({
-  id: `Q-${1000 + i}`,
-  phone: `+90 555 123 45 ${i.toString().padStart(2, '0')}`,
-  channel: i % 3 === 0 ? 'Web' : 'WhatsApp',
-  question: 'Matematik - Türev',
-  status: i % 5 === 0 ? 'Hata' : 'Çözüldü',
-  model: 'gpt-4o',
-  cost: `$${(Math.random() * 0.05).toFixed(4)}`,
-  time: `${Math.floor(Math.random() * 10) + 1} dk önce`
-}));
-
-const expensiveQuestions = Array.from({ length: 10 }).map((_, i) => ({
-  id: `Q-${9000 + i}`,
-  phone: `+90 532 987 65 ${i.toString().padStart(2, '0')}`,
-  channel: 'WhatsApp',
-  question: 'Fizik - Karmaşık Devre',
-  status: 'Çözüldü',
-  model: 'gpt-4o-high-res',
-  cost: `$${(Math.random() * 0.15 + 0.05).toFixed(4)}`,
-  time: `${Math.floor(Math.random() * 24)} saat önce`
-})).sort((a, b) => parseFloat(b.cost.slice(1)) - parseFloat(a.cost.slice(1)));
-
 const recentPayments = Array.from({ length: 10 }).map((_, i) => ({
   id: `PAY-${5000 + i}`,
   phone: `+90 505 456 78 ${i.toString().padStart(2, '0')}`,
@@ -93,6 +65,8 @@ const AdminDashboard: React.FC = () => {
     totalCompletionTokens: 0,
     totalTokens: 0,
     totalCost: 0,
+    costToday: 0,
+    costThisMonth: 0,
     chartData: [] as any[]
   });
   const [systemHealth, setSystemHealth] = useState({
@@ -314,8 +288,8 @@ const AdminDashboard: React.FC = () => {
           />
           <StatCard 
             title="Toplam Maliyet" 
-            value="$4,250.45" 
-            subtitle="Bugün: $45.20 | Bu Ay: $1,240.50"
+            value={`$${(tokenStats.totalCost || 0).toFixed(4)}`} 
+            subtitle={`Bugün: $${(tokenStats.costToday || 0).toFixed(4)} | Bu Ay: $${(tokenStats.costThisMonth || 0).toFixed(4)}`}
             icon={TrendingUp} 
             colorClass="bg-orange-500/10 text-orange-400" 
           />
@@ -382,7 +356,7 @@ const AdminDashboard: React.FC = () => {
             </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={tokenStats.chartData.length > 0 ? tokenStats.chartData : tokenUsageData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={tokenStats.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>

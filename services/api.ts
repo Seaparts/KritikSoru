@@ -301,6 +301,8 @@ export const getTokenUsageStats = async () => {
     let totalCompletionTokens = 0;
     let totalTokens = 0;
     let totalCost = 0;
+    let costToday = 0;
+    let costThisMonth = 0;
     
     const dailyData: Record<string, { tokens: number, cost: number }> = {};
 
@@ -317,6 +319,9 @@ export const getTokenUsageStats = async () => {
       'gpt-4.1-mini': { input: 0.80, output: 3.20 },
       'gpt-4.1-nano': { input: 0.20, output: 0.80 },
     };
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const thisMonthStr = todayStr.substring(0, 7);
 
     snapshot.forEach(doc => {
       const data = doc.data();
@@ -340,6 +345,13 @@ export const getTokenUsageStats = async () => {
         }
         dailyData[date].tokens += tTokens;
         dailyData[date].cost += cost;
+        
+        if (date === todayStr) {
+          costToday += cost;
+        }
+        if (date.startsWith(thisMonthStr)) {
+          costThisMonth += cost;
+        }
       }
     });
 
@@ -358,6 +370,8 @@ export const getTokenUsageStats = async () => {
       totalCompletionTokens,
       totalTokens,
       totalCost,
+      costToday,
+      costThisMonth,
       chartData
     };
   } catch (error) {
@@ -367,6 +381,8 @@ export const getTokenUsageStats = async () => {
       totalCompletionTokens: 0,
       totalTokens: 0,
       totalCost: 0,
+      costToday: 0,
+      costThisMonth: 0,
       chartData: []
     };
   }
