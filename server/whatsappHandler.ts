@@ -14,6 +14,14 @@ try {
   } else {
     console.warn("Roboto-Regular.ttf not found. Canvas text rendering might fail on some systems.");
   }
+
+  const handwritingFontPath = path.join(process.cwd(), 'PatrickHand-Regular.ttf');
+  if (fs.existsSync(handwritingFontPath)) {
+    GlobalFonts.registerFromPath(handwritingFontPath, 'PatrickHand');
+    console.log("Successfully registered PatrickHand font for canvas.");
+  } else {
+    console.warn("PatrickHand-Regular.ttf not found.");
+  }
 } catch (e) {
   console.error("Failed to register font:", e);
 }
@@ -306,7 +314,7 @@ async function solveQuestion(text: string, difficulty: number, uid: string): Pro
       messages: [
         {
           role: "system",
-          content: "Sen alanında 15+ yıl deneyimli, TYT/AYT/LGS sınavlarına öğrenci hazırlamış tecrübeli bir Türk öğretmenisin. Soruyu özel ders verir gibi çöz.\nGörevin:\n1. Hangi sınavın (sadece lgs, tyt ve ayt), hangi dersin, hangi konusu olduğunu tanımla – Bu soru hangi konu/kazanımı ölçüyor?\n2. İpucu ver – Soruyu çözmek için hangi kural, formül veya strateji gerekli?\n3. Adım adım çöz – Her adımı numaralandır, gerekçesini açıkla. Öğrenci sanki yanında oturuyormuş gibi konuş.\n4. Tuzaklara dikkat et – Bu soruda öğrencilerin sık yaptığı hatayı belirt.\n5. Doğru seçeneği açıkla – Cevabın neden doğru olduğunu, diğer şıkların neden yanlış olduğunu kısaca göster.\n6. Pekiştir – Tek cümlelik altın kural veya hafızada kalacak bir not bırak.\n7. Sınavda bu dersten kaç soru gelir ve bu konudan kaç soru gelebileceğini belirt.\n8 Cevabın doğruluğunu tekrar kontrol et. bir tutarsızlık varsa gerekirse tekrar çöz. Bu kontrolü herhangi bir mesaj döndürmeden yap.\n\nÖNEMLİ KURAL: Çözümü yazarken yukarıdaki görev maddelerinin başlıklarını veya soru cümlelerini (örneğin '1. Hangi sınavın...', '2. İpucu ver:', 'Pekiştir:' gibi) KESİNLİKLE metne yazma. Sadece doğrudan cevapları, akıcı ve doğal bir anlatımla yaz.\n\nTürkçe cevap ver. Samimi, teşvik edici ve anlaşılır bir dil kullan. Çözüm metni bir resmin üzerine yazdırılacağı için düz metin (plain text) kullan, Markdown (yıldız, kare vb.) veya LaTeX kullanma."
+          content: "Sen alanında 15+ yıl deneyimli, TYT/AYT/LGS sınavlarına öğrenci hazırlamış tecrübeli bir Türk öğretmenisin. Soruyu özel ders verir gibi çöz.\nGörevin:\n1. Hangi sınavın (sadece lgs, tyt ve ayt), hangi dersin, hangi konusu olduğunu örnek 'AYT / Matematik 3 / Denklemler' şeklinde tanımla.\n2. İpucu ver – Soruyu çözmek için hangi kural, formül veya strateji gerekli?\n3. Adım adım çöz – Her adımı numaralandır, gerekçesini açıkla. Öğrenci sanki yanında oturuyormuş gibi konuş.\n4. Tuzaklara dikkat et – Bu soruda öğrencilerin sık yaptığı hatayı belirt.\n5. Doğru seçeneği açıkla – Cevabın neden doğru olduğunu, diğer şıkların neden yanlış olduğunu kısaca göster.\n6. Pekiştir – Tek cümlelik altın kural veya hafızada kalacak bir not bırak.\n7. Sınavda bu dersten kaç soru gelir ve bu konudan kaç soru gelebileceğini belirt.\n8 Cevabın doğruluğunu tekrar kontrol et. bir tutarsızlık varsa gerekirse tekrar çöz. Bu kontrolü herhangi bir mesaj döndürmeden yap.\n\nÖNEMLİ KURAL: Çözümü yazarken yukarıdaki görev maddelerinin başlıklarını veya soru cümlelerini (örneğin '1. Hangi sınavın...', '2. İpucu ver:', 'Pekiştir:' gibi) KESİNLİKLE metne yazma. Sadece doğrudan cevapları, akıcı ve doğal bir anlatımla yaz.\n\nTürkçe cevap ver. Samimi, teşvik edici ve anlaşılır bir dil kullan. Çözüm metni bir resmin üzerine yazdırılacağı için düz metin (plain text) kullan, Markdown (yıldız, kare vb.) veya LaTeX kullanma."
         },
         { role: "user", content: text }
       ]
@@ -328,7 +336,7 @@ async function solveQuestion(text: string, difficulty: number, uid: string): Pro
         messages: [
           {
             role: "system",
-            content: "Sen alanında 15+ yıl deneyimli, TYT/AYT/LGS sınavlarına öğrenci hazırlamış tecrübeli bir Türk öğretmenisin. Soruyu özel ders verir gibi çöz.\nGörevin:\n1. Hangi sınavın (sadece lgs, tyt ve ayt), hangi dersin, hangi konusu olduğunu tanımla – Bu soru hangi konu/kazanımı ölçüyor?\n2. İpucu ver – Soruyu çözmek için hangi kural, formül veya strateji gerekli?\n3. Adım adım çöz – Her adımı numaralandır, gerekçesini açıkla. Öğrenci sanki yanında oturuyormuş gibi konuş.\n4. Tuzaklara dikkat et – Bu soruda öğrencilerin sık yaptığı hatayı belirt.\n5. Doğru seçeneği açıkla – Cevabın neden doğru olduğunu, diğer şıkların neden yanlış olduğunu kısaca göster.\n6. Pekiştir – Tek cümlelik altın kural veya hafızada kalacak bir not bırak.\n7. Sınavda bu dersten kaç soru gelir ve bu konudan kaç soru gelebileceğini belirt.\n8 Cevabın doğruluğunu tekrar kontrol et. bir tutarsızlık varsa gerekirse tekrar çöz. Bu kontrolü herhangi bir mesaj döndürmeden yap.\n\nÖNEMLİ KURAL: Çözümü yazarken yukarıdaki görev maddelerinin başlıklarını veya soru cümlelerini (örneğin '1. Hangi sınavın...', '2. İpucu ver:', 'Pekiştir:' gibi) KESİNLİKLE metne yazma. Sadece doğrudan cevapları, akıcı ve doğal bir anlatımla yaz.\n\nTürkçe cevap ver. Samimi, teşvik edici ve anlaşılır bir dil kullan. Çözüm metni bir resmin üzerine yazdırılacağı için düz metin (plain text) kullan, Markdown (yıldız, kare vb.) veya LaTeX kullanma."
+            content: "Sen alanında 15+ yıl deneyimli, TYT/AYT/LGS sınavlarına öğrenci hazırlamış tecrübeli bir Türk öğretmenisin. Soruyu özel ders verir gibi çöz.\nGörevin:\n1. Hangi sınavın (sadece lgs, tyt ve ayt), hangi dersin, hangi konusu olduğunu örnek 'AYT / Matematik 3 / Denklemler' şeklinde tanımla.\n2. İpucu ver – Soruyu çözmek için hangi kural, formül veya strateji gerekli?\n3. Adım adım çöz – Her adımı numaralandır, gerekçesini açıkla. Öğrenci sanki yanında oturuyormuş gibi konuş.\n4. Tuzaklara dikkat et – Bu soruda öğrencilerin sık yaptığı hatayı belirt.\n5. Doğru seçeneği açıkla – Cevabın neden doğru olduğunu, diğer şıkların neden yanlış olduğunu kısaca göster.\n6. Pekiştir – Tek cümlelik altın kural veya hafızada kalacak bir not bırak.\n7. Sınavda bu dersten kaç soru gelir ve bu konudan kaç soru gelebileceğini belirt.\n8 Cevabın doğruluğunu tekrar kontrol et. bir tutarsızlık varsa gerekirse tekrar çöz. Bu kontrolü herhangi bir mesaj döndürmeden yap.\n\nÖNEMLİ KURAL: Çözümü yazarken yukarıdaki görev maddelerinin başlıklarını veya soru cümlelerini (örneğin '1. Hangi sınavın...', '2. İpucu ver:', 'Pekiştir:' gibi) KESİNLİKLE metne yazma. Sadece doğrudan cevapları, akıcı ve doğal bir anlatımla yaz.\n\nTürkçe cevap ver. Samimi, teşvik edici ve anlaşılır bir dil kullan. Çözüm metni bir resmin üzerine yazdırılacağı için düz metin (plain text) kullan, Markdown (yıldız, kare vb.) veya LaTeX kullanma."
           },
           { role: "user", content: text }
         ]
@@ -350,6 +358,23 @@ async function solveQuestion(text: string, difficulty: number, uid: string): Pro
 export async function generateAndUploadImage(solutionText: string, baseUrl: string): Promise<string> {
   try {
     console.log("Starting generateAndUploadImage...");
+    
+    // Helper function to format math text (convert ^2 to ², etc.)
+    const formatMathText = (text: string): string => {
+      const superscripts: { [key: string]: string } = {
+        '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+        '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+        '+': '⁺', '-': '⁻', 'n': 'ⁿ', 'x': 'ˣ', 'y': 'ʸ',
+        '(': '⁽', ')': '⁾'
+      };
+      
+      return text.replace(/\^\{?([0-9+\-nxy()]+)\}?/g, (match, p1) => {
+        return p1.split('').map((char: string) => superscripts[char] || char).join('');
+      });
+    };
+
+    const formattedSolutionText = formatMathText(solutionText);
+
     // 1. Find the image starting with 'generated' in the root directory
     const files = fs.readdirSync(process.cwd());
     const generatedImageFile = files.find(file => file.toLowerCase().startsWith('generated') && (file.toLowerCase().endsWith('.png') || file.toLowerCase().endsWith('.jpg') || file.toLowerCase().endsWith('.jpeg')));
@@ -417,45 +442,73 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
     console.log("Configuring text rendering...");
     // 4. Configure text rendering
-    ctx.font = 'bold 36px Roboto'; // Use registered font
-    ctx.fillStyle = '#000000'; // Black text for better visibility
+    ctx.font = '30px PatrickHand'; // Use registered handwriting font
+    ctx.fillStyle = '#3b3b3b'; // Pencil/graphite color
     
     // Adjust margins based on the notebook image structure
     const marginX = bgImage ? canvasWidth * 0.18 : canvasWidth * 0.10;
     const marginY = bgImage ? canvasHeight * 0.20 : canvasHeight * 0.15;
     const maxWidth = canvasWidth - (marginX * 2);
-    const lineHeight = 52;
+    const lineHeight = 46;
 
     console.log("Wrapping and drawing text...");
     // 5. Wrap and draw text
-    const paragraphs = solutionText.split('\n');
+    const paragraphs = formattedSolutionText.split('\n');
     let currentY = marginY;
+    let isFirstLine = true;
 
     for (let p = 0; p < paragraphs.length; p++) {
+      const paragraphText = paragraphs[p].trim();
       // Skip empty paragraphs to avoid extra spacing, but add a small gap
-      if (paragraphs[p].trim() === '') {
+      if (paragraphText === '') {
         currentY += lineHeight / 2;
         continue;
       }
 
-      const words = paragraphs[p].split(' ');
-      let line = '';
+      if (isFirstLine) {
+        // Draw the title (first item)
+        ctx.font = 'bold 50px PatrickHand';
+        ctx.fillStyle = 'red';
+        const metrics = ctx.measureText(paragraphText);
+        const textWidth = metrics.width;
+        const startX = (canvasWidth - textWidth) / 2;
+        
+        ctx.fillText(paragraphText, startX, currentY);
+        
+        // Draw underline
+        ctx.beginPath();
+        ctx.moveTo(startX, currentY + 8); // slightly below the baseline
+        ctx.lineTo(startX + textWidth, currentY + 8);
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        currentY += 60; // Add extra space after the title
+        isFirstLine = false;
+      } else {
+        // Draw normal text
+        ctx.font = '30px PatrickHand';
+        ctx.fillStyle = '#3b3b3b';
 
-      for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
-        const metrics = ctx.measureText(testLine);
-        const testWidth = metrics.width;
+        const words = paragraphs[p].split(' ');
+        let line = '';
 
-        if (testWidth > maxWidth && n > 0) {
-          ctx.fillText(line, marginX, currentY);
-          line = words[n] + ' ';
-          currentY += lineHeight;
-        } else {
-          line = testLine;
+        for (let n = 0; n < words.length; n++) {
+          const testLine = line + words[n] + ' ';
+          const metrics = ctx.measureText(testLine);
+          const testWidth = metrics.width;
+
+          if (testWidth > maxWidth && n > 0) {
+            ctx.fillText(line, marginX, currentY);
+            line = words[n] + ' ';
+            currentY += lineHeight;
+          } else {
+            line = testLine;
+          }
         }
+        ctx.fillText(line, marginX, currentY);
+        currentY += lineHeight;
       }
-      ctx.fillText(line, marginX, currentY);
-      currentY += lineHeight;
     }
 
     console.log("Calling canvas.toBuffer...");
