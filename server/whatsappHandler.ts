@@ -375,9 +375,12 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
     const formattedSolutionText = formatMathText(solutionText);
 
-    // 1. Find the image starting with 'generated' in the root directory
+    // 1. Find the background image in the root directory
     const files = fs.readdirSync(process.cwd());
-    const generatedImageFile = files.find(file => file.toLowerCase().startsWith('generated') && (file.toLowerCase().endsWith('.png') || file.toLowerCase().endsWith('.jpg') || file.toLowerCase().endsWith('.jpeg')));
+    const generatedImageFile = files.find(file => 
+      (file.toLowerCase().startsWith('generate_bg') || file.toLowerCase().startsWith('generated')) && 
+      (file.toLowerCase().endsWith('.png') || file.toLowerCase().endsWith('.jpg') || file.toLowerCase().endsWith('.jpeg'))
+    );
     
     let bgImage;
     let canvasWidth = 1080;

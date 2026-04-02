@@ -1,8 +1,11 @@
 import { generateAndUploadImage } from './server/whatsappHandler.js';
 
 async function test() {
-  const url = await generateAndUploadImage("Test solution text", "http://localhost:3000");
-  console.log("Result:", url);
+  try {
+    const url = await generateAndUploadImage("Test text", "http://localhost:3000");
+    console.log("Result URL:", url);
+  } catch (e) {
+    console.error(e);
+  }
 }
-
-test().catch(console.error);
+test();
