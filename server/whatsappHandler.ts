@@ -378,7 +378,7 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
     // 1. Find the background image in the root directory
     const files = fs.readdirSync(process.cwd());
     const generatedImageFile = files.find(file => 
-      file.toLowerCase() === 'background.png'
+      file.toLowerCase() === 'background.jpg'
     );
     
     let bgImage;
