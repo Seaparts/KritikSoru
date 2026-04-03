@@ -375,19 +375,15 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
     const formattedSolutionText = formatMathText(solutionText);
 
-    // 1. Find the background image in the root directory
-    const files = fs.readdirSync(process.cwd());
-    const generatedImageFile = files.find(file => 
-      file.toLowerCase() === 'background.jpg'
-    );
+    // 1. Find the background image
+    const imagePath = path.join(process.cwd(), 'back.jpg');
     
     let bgImage;
     let canvasWidth = 1080;
     let canvasHeight = 1920;
 
-    if (generatedImageFile) {
-      console.log(`Found background image file: ${generatedImageFile}`);
-      const imagePath = path.join(process.cwd(), generatedImageFile);
+    if (fs.existsSync(imagePath)) {
+      console.log(`Found background image file: back.jpg`);
       const stats = fs.statSync(imagePath);
       if (stats.size > 0) {
         try {
@@ -399,15 +395,15 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
           canvasWidth = bgImage.width;
           canvasHeight = bgImage.height;
         } catch (imgError) {
-          console.error(`Failed to load background image ${generatedImageFile}:`, imgError);
+          console.error(`Failed to load background image back.jpg:`, imgError);
           console.warn("Using fallback background due to image load error.");
           bgImage = undefined; // Force fallback
         }
       } else {
-        console.warn(`Background image ${generatedImageFile} is empty (0 bytes). Using fallback background.`);
+        console.warn(`Background image back.jpg is empty (0 bytes). Using fallback background.`);
       }
     } else {
-      console.warn("Background image starting with 'generated' not found. Using fallback background.");
+      console.warn("Background image back.jpg not found. Using fallback background.");
     }
 
     console.log("Creating canvas...");
