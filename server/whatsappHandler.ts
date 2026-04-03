@@ -438,57 +438,45 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
       }
     }
 
-    console.log("Configuring text rendering...");
-    // 4. Configure text rendering
-    ctx.font = '30px PatrickHand'; // Use registered handwriting font
-    ctx.fillStyle = '#3b3b3b'; // Pencil/graphite color
+    console.log("Configuring text rendering limits...");
+    // 4. Configure text rendering limits
+    const startX = 200;
+    const startY = 350;
+    const maxWidth = 750;
+    const maxHeight = 1400;
     
-    // Adjust margins based on the notebook image structure
-    const marginX = bgImage ? canvasWidth * 0.18 : canvasWidth * 0.10;
-    const marginY = bgImage ? canvasHeight * 0.20 : canvasHeight * 0.15;
-    const maxWidth = canvasWidth - (marginX * 2);
-    const lineHeight = 46;
+    const maxFontSize = 45;
+    const minFontSize = 24;
+    const lineHeightMultiplier = 1.4;
 
-    console.log("Wrapping and drawing text...");
+    console.log("Wrapping and drawing text with dynamic sizing...");
     // 5. Wrap and draw text
     const paragraphs = formattedSolutionText.split('\n');
-    let currentY = marginY;
-    let isFirstLine = true;
+    
+    // Separate title (first line) from body
+    const title = paragraphs.length > 0 ? paragraphs[0].trim() : "";
+    const bodyParagraphs = paragraphs.slice(1);
 
-    for (let p = 0; p < paragraphs.length; p++) {
-      const paragraphText = paragraphs[p].trim();
-      // Skip empty paragraphs to avoid extra spacing, but add a small gap
-      if (paragraphText === '') {
-        currentY += lineHeight / 2;
-        continue;
-      }
+    let currentFontSize = maxFontSize;
+    let wrappedLines: { text: string, isParagraphBreak: boolean }[] = [];
+    let totalTextHeight = 0;
 
-      if (isFirstLine) {
-        // Draw the title (first item)
-        ctx.font = 'bold 50px PatrickHand';
-        ctx.fillStyle = 'red';
-        const metrics = ctx.measureText(paragraphText);
-        const textWidth = metrics.width;
-        const startX = (canvasWidth - textWidth) / 2;
-        
-        ctx.fillText(paragraphText, startX, currentY);
-        
-        // Draw underline
-        ctx.beginPath();
-        ctx.moveTo(startX, currentY + 8); // slightly below the baseline
-        ctx.lineTo(startX + textWidth, currentY + 8);
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        
-        currentY += 60; // Add extra space after the title
-        isFirstLine = false;
-      } else {
-        // Draw normal text
-        ctx.font = '30px PatrickHand';
-        ctx.fillStyle = '#3b3b3b';
+    // We loop to find the right font size for the body text
+    while (currentFontSize >= minFontSize) {
+      ctx.font = `${currentFontSize}px PatrickHand`;
+      wrappedLines = [];
+      totalTextHeight = 0;
 
-        const words = paragraphs[p].split(' ');
+      for (let p = 0; p < bodyParagraphs.length; p++) {
+        const paragraphText = bodyParagraphs[p].trim();
+        
+        if (paragraphText === '') {
+          wrappedLines.push({ text: '', isParagraphBreak: true });
+          totalTextHeight += (currentFontSize * lineHeightMultiplier) / 2;
+          continue;
+        }
+
+        const words = paragraphText.split(' ');
         let line = '';
 
         for (let n = 0; n < words.length; n++) {
@@ -496,16 +484,60 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
           const metrics = ctx.measureText(testLine);
           const testWidth = metrics.width;
 
+          // If a single word is too long, we might need to break it, but standard word wrap is usually enough
           if (testWidth > maxWidth && n > 0) {
-            ctx.fillText(line, marginX, currentY);
+            wrappedLines.push({ text: line, isParagraphBreak: false });
+            totalTextHeight += currentFontSize * lineHeightMultiplier;
             line = words[n] + ' ';
-            currentY += lineHeight;
           } else {
             line = testLine;
           }
         }
-        ctx.fillText(line, marginX, currentY);
-        currentY += lineHeight;
+        wrappedLines.push({ text: line, isParagraphBreak: false });
+        totalTextHeight += currentFontSize * lineHeightMultiplier;
+      }
+
+      if (totalTextHeight <= maxHeight) {
+        break; // Fits perfectly
+      }
+      currentFontSize -= 2; // Reduce font size and try again
+    }
+
+    // Now draw everything
+    let currentY = startY;
+
+    // Draw the title
+    if (title) {
+      ctx.font = 'bold 50px PatrickHand';
+      ctx.fillStyle = 'red';
+      const titleMetrics = ctx.measureText(title);
+      const titleWidth = titleMetrics.width;
+      const titleStartX = startX + (maxWidth - titleWidth) / 2; // Center title in the text area
+      
+      ctx.fillText(title, titleStartX, currentY);
+      
+      // Draw underline
+      ctx.beginPath();
+      ctx.moveTo(titleStartX, currentY + 8);
+      ctx.lineTo(titleStartX + titleWidth, currentY + 8);
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      
+      currentY += 60; // Space after title
+    }
+
+    // Draw the body text
+    ctx.font = `${currentFontSize}px PatrickHand`;
+    ctx.fillStyle = '#3b3b3b';
+    const finalLineHeight = currentFontSize * lineHeightMultiplier;
+
+    for (const lineObj of wrappedLines) {
+      if (lineObj.isParagraphBreak) {
+        currentY += finalLineHeight / 2;
+      } else {
+        ctx.fillText(lineObj.text, startX, currentY);
+        currentY += finalLineHeight;
       }
     }
 
