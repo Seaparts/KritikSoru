@@ -127,7 +127,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'aydaaras') {
+    if (password === '321321') {
       setIsAuthenticated(true);
       setError('');
     } else {
