@@ -440,9 +440,9 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
     console.log("Configuring text rendering limits...");
     // 4. Configure text rendering limits
-    const startX = 150;
-    const startY = 200;
-    const maxWidth = 650;
+    const startX = 75;
+    const startY = 75;
+    const maxWidth = 725;
     const maxHeight = 1000;
     
     const maxFontSize = 35;
@@ -508,7 +508,7 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
     // Draw the title
     if (title) {
-      ctx.font = '50px PatrickHand';
+      ctx.font = '35px PatrickHand';
       ctx.fillStyle = 'red';
       const titleMetrics = ctx.measureText(title);
       const titleWidth = titleMetrics.width;
