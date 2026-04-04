@@ -440,13 +440,13 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
     console.log("Configuring text rendering limits...");
     // 4. Configure text rendering limits
-    const startX = 200;
-    const startY = 350;
-    const maxWidth = 750;
-    const maxHeight = 1400;
+    const startX = 150;
+    const startY = 200;
+    const maxWidth = 650;
+    const maxHeight = 1000;
     
-    const maxFontSize = 45;
-    const minFontSize = 24;
+    const maxFontSize = 35;
+    const minFontSize = 20;
     const lineHeightMultiplier = 1.4;
 
     console.log("Wrapping and drawing text with dynamic sizing...");
@@ -508,7 +508,7 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
     // Draw the title
     if (title) {
-      ctx.font = 'bold 50px PatrickHand';
+      ctx.font = '50px PatrickHand';
       ctx.fillStyle = 'red';
       const titleMetrics = ctx.measureText(title);
       const titleWidth = titleMetrics.width;
