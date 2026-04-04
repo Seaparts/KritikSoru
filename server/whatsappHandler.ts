@@ -442,7 +442,7 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
     // 4. Configure text rendering limits
     const startX = 75;
     const startY = 75;
-    const maxWidth = 725;
+    const maxWidth = 750;
     const maxHeight = 1000;
     
     const maxFontSize = 35;
@@ -508,8 +508,8 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
     // Draw the title
     if (title) {
-      ctx.font = '35px PatrickHand';
-      ctx.fillStyle = 'red';
+      ctx.font = '30px PatrickHand';
+      ctx.fillStyle = 'black';
       const titleMetrics = ctx.measureText(title);
       const titleWidth = titleMetrics.width;
       const titleStartX = startX + (maxWidth - titleWidth) / 2; // Center title in the text area
@@ -520,7 +520,7 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
       ctx.beginPath();
       ctx.moveTo(titleStartX, currentY + 8);
       ctx.lineTo(titleStartX + titleWidth, currentY + 8);
-      ctx.strokeStyle = 'red';
+      ctx.strokeStyle = 'black';
       ctx.lineWidth = 3;
       ctx.stroke();
       
