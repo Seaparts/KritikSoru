@@ -20,18 +20,6 @@ function download(url: string, dest: string) {
   });
 }
 
-async function downloadAll() {
-  try {
-    console.log('Downloading PatrickHand...');
-    await download('https://github.com/google/fonts/raw/main/ofl/patrickhand/PatrickHand-Regular.ttf', 'PatrickHand-Regular.ttf');
-    console.log('PatrickHand downloaded.');
-    
-    console.log('Downloading TwemojiMozilla...');
-    await download('https://github.com/mozilla/twemoji-colr/releases/download/v0.5.1/TwemojiMozilla.ttf', 'TwemojiMozilla.ttf');
-    console.log('TwemojiMozilla downloaded.');
-  } catch (error) {
-    console.error('Download failed:', error);
-  }
-}
-
-downloadAll();
+download('https://github.com/mozilla/twemoji-colr/releases/download/v0.7.0/TwemojiMozilla.ttf', 'TwemojiMozilla.ttf')
+  .then(() => console.log('Downloaded, size:', fs.statSync('TwemojiMozilla.ttf').size))
+  .catch(console.error);
