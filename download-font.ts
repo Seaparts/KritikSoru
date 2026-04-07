@@ -27,7 +27,7 @@ async function downloadAll() {
     console.log('PatrickHand downloaded.');
     
     console.log('Downloading TwemojiMozilla...');
-    await download('https://github.com/mozilla/twemoji-colr/releases/download/v0.5.1/TwemojiMozilla.ttf', 'TwemojiMozilla.ttf');
+    await download('https://github.com/mozilla/twemoji-colr/releases/download/v0.7.0/Twemoji.Mozilla.ttf', 'TwemojiMozilla.ttf');
     console.log('TwemojiMozilla downloaded.');
   } catch (error) {
     console.error('Download failed:', error);

@@ -471,7 +471,7 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
     // We loop to find the right font size for the body text
     while (currentFontSize >= minFontSize) {
-      ctx.font = `${currentFontSize}px "PatrickHand", "Twemoji Mozilla", sans-serif`;
+      ctx.font = `${currentFontSize}px "PatrickHand", "Twemoji Mozilla", "TwemojiMozilla", sans-serif`;
       wrappedLines = [];
       totalTextHeight = 0;
 
@@ -516,7 +516,7 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
     // Draw the title
     if (title) {
-      ctx.font = '30px "PatrickHand", "Twemoji Mozilla", sans-serif';
+      ctx.font = '30px "PatrickHand", "Twemoji Mozilla", "TwemojiMozilla", sans-serif';
       ctx.fillStyle = 'black';
       const titleMetrics = ctx.measureText(title);
       const titleWidth = titleMetrics.width;
@@ -536,7 +536,7 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
     }
 
     // Draw the body text
-    ctx.font = `${currentFontSize}px "PatrickHand", "Twemoji Mozilla", sans-serif`;
+    ctx.font = `${currentFontSize}px "PatrickHand", "Twemoji Mozilla", "TwemojiMozilla", sans-serif`;
     ctx.fillStyle = '#3b3b3b';
     const finalLineHeight = currentFontSize * lineHeightMultiplier;
 
