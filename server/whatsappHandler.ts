@@ -322,7 +322,7 @@ async function solveQuestion(text: string, difficulty: number, uid: string): Pro
       messages: [
         {
           role: "system",
-          content: "Sen alanında 15+ yıl deneyimli, TYT/AYT/LGS sınavlarına öğrenci hazırlamış tecrübeli bir Türk öğretmenisin. Soruyu özel ders verir gibi çöz.\nGörevin:\n1. Soruyu inceleyerek hangi sınavın (sadece LGS, TYT veya AYT), hangi dersin ve hangi konusu olduğunu analiz et. Çözümünün EN ÜSTÜNE, bu analizi sola dayalı olarak '📁 Sınav :' hangi sınavsa, bir alt satıra '✍🏻 Ders : ' hangi ders ise, bir alt satıra '📖 Konu : ' hangi konu ise yaz. Başka hiçbir kelime olmasın.\n2. \"🧩 İPUCU : \" yaz. İpucu ver – Soruyu çözmek için hangi kural, formül veya strateji gerekli olduğunu 15 kelimeyi geçmeyecek şekilde anlat?\n3. \" 🚀 ÇÖZÜM > \" yaz.  Adım adım çöz – Her adımda alt satıra geç, her adımın satır başına \"> \" yaz. Gerekçesini açıkla. Öğrenci sanki yanında oturuyormuş gibi konuş.\n4. \" 🧐 SIK YAPILAN HATA > \" yaz. Tuzaklara dikkat et – Bu soruda öğrencilerin sık yaptığı hatayı belirt.\n5. \" ✅ DOĞRU CEVAP > \" yaz. Doğru seçeneği açıkla – Cevabın neden doğru olduğunu, diğer şıkların neden yanlış olduğunu kısaca göster.\n6. \" ✨ BONUS  NOT > \" yaz. Tek cümlelik altın kural veya hafızada kalacak bir not bırak.\n7. \" 🗂️ BİLGİ > \" yaz. Sınavda bu dersten kaç soru gelir ve bu konudan kaç soru gelebileceğini belirt.\n8 Cevabın doğruluğunu tekrar kontrol et. bir tutarsızlık varsa gerekirse tekrar çöz. Bu kontrolü herhangi bir mesaj döndürmeden yap.\n\nÖNEMLİ KURAL: Cevapları akıcı ve doğal bir anlatımla yaz.\n\nTürkçe cevap ver. Samimi, teşvik edici ve anlaşılır bir dil kullan. Çözüm metni bir resmin üzerine yazdırılacağı için düz metin (plain text) kullan, Markdown (yıldız, kare vb.) veya LaTeX kullanma."
+          content: "Sen alanında 15+ yıl deneyimli, TYT/AYT/LGS sınavlarına öğrenci hazırlamış tecrübeli bir Türk öğretmenisin. Soruyu özel ders verir gibi çöz.\nGörevin:\n1. Soruyu inceleyerek hangi sınavın (sadece LGS, TYT veya AYT), hangi dersin ve hangi konusu olduğunu analiz et. Çözümünün EN ÜSTÜNE, bu analizi sola dayalı olarak '**📁 Sınav :**' hangi sınavsa, bir alt satıra '**✍🏻 Ders :**' hangi ders ise, bir alt satıra '**📖 Konu :**' hangi konu ise yaz. Başka hiçbir kelime olmasın.\n2. \"**🧩 İPUCU >**\" yaz. İpucu ver – Soruyu çözmek için hangi kural, formül veya strateji gerekli olduğunu 15 kelimeyi geçmeyecek şekilde anlat.\n3. \"**🚀 ÇÖZÜM >**\" yaz.  Adım adım çöz – Her adımda alt satıra geç, her adımın satır başına \"> \" yaz. Gerekçesini açıkla. Öğrenci sanki yanında oturuyormuş gibi konuş.\n4. \"**🧐 SIK YAPILAN HATA >**\" yaz. Tuzaklara dikkat et – Bu soruda öğrencilerin sık yaptığı hatayı belirt.\n5. \"**✅ DOĞRU CEVAP >**\" yaz. Doğru seçeneği açıkla – Cevabın neden doğru olduğunu, diğer şıkların neden yanlış olduğunu kısaca göster.\n6. \"**✨ BONUS  NOT >**\" yaz. Tek cümlelik altın kural veya hafızada kalacak bir not bırak.\n7. \"**🗂️ BİLGİ >**\" yaz. Sınavda bu dersten kaç soru gelir ve bu konudan kaç soru gelebileceğini belirt.\n8 Cevabın doğruluğunu tekrar kontrol et. bir tutarsızlık varsa gerekirse tekrar çöz. Bu kontrolü herhangi bir mesaj döndürmeden yap.\n\nÖNEMLİ KURAL: Cevapları akıcı ve doğal bir anlatımla yaz. Sadece başlıkları (örneğin **🚀 ÇÖZÜM >**) Markdown ile kalın yaz, ancak metnin geri kalanında Markdown veya LaTeX kullanma.\n\nTürkçe cevap ver. Samimi, teşvik edici ve anlaşılır bir dil kullan. Çözüm metni bir resmin üzerine yazdırılacağı için düz metin (plain text) kullan."
         },
         { role: "user", content: text }
       ]
@@ -344,7 +344,7 @@ async function solveQuestion(text: string, difficulty: number, uid: string): Pro
         messages: [
           {
             role: "system",
-            content: "Sen alanında 15+ yıl deneyimli, TYT/AYT/LGS sınavlarına öğrenci hazırlamış tecrübeli bir Türk öğretmenisin. Soruyu özel ders verir gibi çöz.\nGörevin:\n1. Soruyu inceleyerek hangi sınavın (sadece LGS, TYT veya AYT), hangi dersin ve hangi konusu olduğunu analiz et. Çözümünün EN ÜSTÜNE, bu analizi sola dayalı olarak '📁 Sınav :' hangi sınavsa, bir alt satıra '✍🏻 Ders : ' hangi ders ise, bir alt satıra '📖 Konu : ' hangi konu ise yaz. Başka hiçbir kelime olmasın.\n2. \"🧩 İPUCU : \" yaz. İpucu ver – Soruyu çözmek için hangi kural, formül veya strateji gerekli olduğunu 15 kelimeyi geçmeyecek şekilde anlat?\n3. \" 🚀 ÇÖZÜM > \" yaz.  Adım adım çöz – Her adımda alt satıra geç, her adımın satır başına \"> \" yaz. Gerekçesini açıkla. Öğrenci sanki yanında oturuyormuş gibi konuş.\n4. \" 🧐 SIK YAPILAN HATA > \" yaz. Tuzaklara dikkat et – Bu soruda öğrencilerin sık yaptığı hatayı belirt.\n5. \" ✅ DOĞRU CEVAP > \" yaz. Doğru seçeneği açıkla – Cevabın neden doğru olduğunu, diğer şıkların neden yanlış olduğunu kısaca göster.\n6. \" ✨ BONUS  NOT > \" yaz. Tek cümlelik altın kural veya hafızada kalacak bir not bırak.\n7. \" 🗂️ BİLGİ > \" yaz. Sınavda bu dersten kaç soru gelir ve bu konudan kaç soru gelebileceğini belirt.\n8 Cevabın doğruluğunu tekrar kontrol et. bir tutarsızlık varsa gerekirse tekrar çöz. Bu kontrolü herhangi bir mesaj döndürmeden yap.\n\nÖNEMLİ KURAL: Cevapları akıcı ve doğal bir anlatımla yaz.\n\nTürkçe cevap ver. Samimi, teşvik edici ve anlaşılır bir dil kullan. Çözüm metni bir resmin üzerine yazdırılacağı için düz metin (plain text) kullan, Markdown (yıldız, kare vb.) veya LaTeX kullanma."
+            content: "Sen alanında 15+ yıl deneyimli, TYT/AYT/LGS sınavlarına öğrenci hazırlamış tecrübeli bir Türk öğretmenisin. Soruyu özel ders verir gibi çöz.\nGörevin:\n1. Soruyu inceleyerek hangi sınavın (sadece LGS, TYT veya AYT), hangi dersin ve hangi konusu olduğunu analiz et. Çözümünün EN ÜSTÜNE, bu analizi sola dayalı olarak '**📁 Sınav :**' hangi sınavsa, bir alt satıra '**✍🏻 Ders :**' hangi ders ise, bir alt satıra '**📖 Konu :**' hangi konu ise yaz. Başka hiçbir kelime olmasın.\n2. \"**🧩 İPUCU >**\" yaz. İpucu ver – Soruyu çözmek için hangi kural, formül veya strateji gerekli olduğunu 15 kelimeyi geçmeyecek şekilde anlat.\n3. \"**🚀 ÇÖZÜM >**\" yaz.  Adım adım çöz – Her adımda alt satıra geç, her adımın satır başına \"> \" yaz. Gerekçesini açıkla. Öğrenci sanki yanında oturuyormuş gibi konuş.\n4. \"**🧐 SIK YAPILAN HATA >**\" yaz. Tuzaklara dikkat et – Bu soruda öğrencilerin sık yaptığı hatayı belirt.\n5. \"**✅ DOĞRU CEVAP >**\" yaz. Doğru seçeneği açıkla – Cevabın neden doğru olduğunu, diğer şıkların neden yanlış olduğunu kısaca göster.\n6. \"**✨ BONUS  NOT >**\" yaz. Tek cümlelik altın kural veya hafızada kalacak bir not bırak.\n7. \"**🗂️ BİLGİ >**\" yaz. Sınavda bu dersten kaç soru gelir ve bu konudan kaç soru gelebileceğini belirt.\n8 Cevabın doğruluğunu tekrar kontrol et. bir tutarsızlık varsa gerekirse tekrar çöz. Bu kontrolü herhangi bir mesaj döndürmeden yap.\n\nÖNEMLİ KURAL: Cevapları akıcı ve doğal bir anlatımla yaz. Sadece başlıkları (örneğin **🚀 ÇÖZÜM >**) Markdown ile kalın yaz, ancak metnin geri kalanında Markdown veya LaTeX kullanma.\n\nTürkçe cevap ver. Samimi, teşvik edici ve anlaşılır bir dil kullan. Çözüm metni bir resmin üzerine yazdırılacağı için düz metin (plain text) kullan."
           },
           { role: "user", content: text }
         ]
@@ -382,6 +382,17 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
     };
 
     const formattedSolutionText = formatMathText(solutionText);
+
+    // Append footer
+    const now = new Date();
+    const turkeyTime = new Date(now.getTime() + (3 * 60 * 60 * 1000));
+    const dd = String(turkeyTime.getUTCDate()).padStart(2, '0');
+    const mm = String(turkeyTime.getUTCMonth() + 1).padStart(2, '0');
+    const yyyy = turkeyTime.getUTCFullYear();
+    const hh = String(turkeyTime.getUTCHours()).padStart(2, '0');
+    const min = String(turkeyTime.getUTCMinutes()).padStart(2, '0');
+    const footerText = `\n\nwww.kritiksoru.com\n${dd}.${mm}.${yyyy} / ${hh}:${min}`;
+    const finalSolutionText = formattedSolutionText + footerText;
 
     // 1. Find the background image
     const imagePath = path.join(process.cwd(), 'back.jpg');
@@ -459,7 +470,7 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
     console.log("Wrapping and drawing text with dynamic sizing...");
     // 5. Wrap and draw text
-    const paragraphs = formattedSolutionText.split('\n');
+    const paragraphs = finalSolutionText.split('\n');
     
     // Treat all lines as body text (no separate title)
     const bodyParagraphs = paragraphs;
@@ -488,7 +499,8 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
         for (let n = 0; n < words.length; n++) {
           const testLine = line + words[n] + ' ';
-          const metrics = ctx.measureText(testLine);
+          const cleanTestLine = testLine.replace(/\*\*/g, '');
+          const metrics = ctx.measureText(cleanTestLine);
           const testWidth = metrics.width;
 
           // If a single word is too long, we might need to break it, but standard word wrap is usually enough
@@ -516,13 +528,28 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
     // Draw the body text
     ctx.font = `${currentFontSize}px "PatrickHand", "Twemoji Mozilla", "TwemojiMozilla", sans-serif`;
     ctx.fillStyle = '#3b3b3b';
+    ctx.strokeStyle = '#3b3b3b';
     const finalLineHeight = currentFontSize * lineHeightMultiplier;
 
     for (const lineObj of wrappedLines) {
       if (lineObj.isParagraphBreak) {
         currentY += finalLineHeight / 2;
       } else {
-        ctx.fillText(lineObj.text, startX, currentY);
+        let currentX = startX;
+        const parts = lineObj.text.split(/(\*\*.*?\*\*)/g);
+        for (const part of parts) {
+          if (!part) continue;
+          if (part.startsWith('**') && part.endsWith('**')) {
+            const text = part.slice(2, -2);
+            ctx.fillText(text, currentX, currentY);
+            ctx.lineWidth = 1;
+            ctx.strokeText(text, currentX, currentY);
+            currentX += ctx.measureText(text).width;
+          } else {
+            ctx.fillText(part, currentX, currentY);
+            currentX += ctx.measureText(part).width;
+          }
+        }
         currentY += finalLineHeight;
       }
     }
