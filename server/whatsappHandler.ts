@@ -450,7 +450,7 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
     // 4. Configure text rendering limits
     const startX = 75;
     const startY = 75;
-    const maxWidth = 750;
+    const maxWidth = 725;
     const maxHeight = 1000;
     
     const maxFontSize = 35;
@@ -461,9 +461,8 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
     // 5. Wrap and draw text
     const paragraphs = formattedSolutionText.split('\n');
     
-    // Separate title (first line) from body
-    const title = paragraphs.length > 0 ? paragraphs[0].trim() : "";
-    const bodyParagraphs = paragraphs.slice(1);
+    // Treat all lines as body text (no separate title)
+    const bodyParagraphs = paragraphs;
 
     let currentFontSize = maxFontSize;
     let wrappedLines: { text: string, isParagraphBreak: boolean }[] = [];
@@ -513,27 +512,6 @@ export async function generateAndUploadImage(solutionText: string, baseUrl: stri
 
     // Now draw everything
     let currentY = startY;
-
-    // Draw the title
-    if (title) {
-      ctx.font = '30px "PatrickHand", "Twemoji Mozilla", "TwemojiMozilla", sans-serif';
-      ctx.fillStyle = 'black';
-      const titleMetrics = ctx.measureText(title);
-      const titleWidth = titleMetrics.width;
-      const titleStartX = startX + (maxWidth - titleWidth) / 2; // Center title in the text area
-      
-      ctx.fillText(title, titleStartX, currentY);
-      
-      // Draw underline
-      ctx.beginPath();
-      ctx.moveTo(titleStartX, currentY + 8);
-      ctx.lineTo(titleStartX + titleWidth, currentY + 8);
-      ctx.strokeStyle = 'black';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      
-      currentY += 60; // Space after title
-    }
 
     // Draw the body text
     ctx.font = `${currentFontSize}px "PatrickHand", "Twemoji Mozilla", "TwemojiMozilla", sans-serif`;
