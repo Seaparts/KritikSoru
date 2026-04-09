@@ -132,9 +132,10 @@ export const fetchAllQuestions = async (): Promise<QuestionHistoryItem[]> => {
       const formattedDate = formatDate(data.createdAt);
       
       const model = data.model || 'gpt-4o';
-      let cost = data.cost || 0;
+      let cost = Number(data.cost) || 0;
       
-      if (cost === 0) {
+      // If cost is 0 or >= 1 (which means it was saved as token count instead of dollar cost)
+      if (cost === 0 || cost >= 1) {
         const promptTokens = (data.questionText?.length || 0) / 4 + 500;
         const completionTokens = (data.answerText?.length || 0) / 4;
         const pricing = MODEL_PRICING[model] || MODEL_PRICING['gpt-4o'];
@@ -178,9 +179,10 @@ export const fetchQuestionHistory = async (userId: string): Promise<QuestionHist
       const formattedDate = formatDate(data.createdAt);
       
       const model = data.model || 'gpt-4o';
-      let cost = data.cost || 0;
+      let cost = Number(data.cost) || 0;
       
-      if (cost === 0) {
+      // If cost is 0 or >= 1 (which means it was saved as token count instead of dollar cost)
+      if (cost === 0 || cost >= 1) {
         const promptTokens = (data.questionText?.length || 0) / 4 + 500;
         const completionTokens = (data.answerText?.length || 0) / 4;
         const pricing = MODEL_PRICING[model] || MODEL_PRICING['gpt-4o'];
