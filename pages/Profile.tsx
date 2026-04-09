@@ -206,6 +206,18 @@ const QuestionHistoryTab: React.FC<{ data: QuestionHistoryItem[]; loading: boole
     setExpandedId(expandedId === id ? null : id);
   };
 
+  const getExamType = (item: QuestionHistoryItem) => {
+    const validExams = ['LGS', 'TYT', 'AYT'];
+    if (item.examType && validExams.includes(item.examType.toUpperCase())) {
+      return item.examType.toUpperCase();
+    }
+    const match = item.answerText?.match(/Sınav\s*:\s*(?:\*\*)?\s*\**\s*(LGS|TYT|AYT)/i);
+    if (match && match[1]) {
+      return match[1].toUpperCase();
+    }
+    return 'TYT'; // Default fallback if not found and not valid
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* List */}
@@ -225,7 +237,7 @@ const QuestionHistoryTab: React.FC<{ data: QuestionHistoryItem[]; loading: boole
               >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500 font-bold text-sm">
-                    {item.examType}
+                    {getExamType(item)}
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-800 text-base">{item.subject}</h4>

@@ -277,8 +277,8 @@ async function analyzeQuestion(text: string, uid: string): Promise<{ isQuestion:
           2: Orta (2-3 işlemli, temel yorum soruları)
           3: Zor (çok adımlı işlem, dikkat gerektiren mantık soruları)
           4: Çok Zor (uzun mantık zinciri, sınavın ayırt edici soruları)
-          Ayrıca sorunun hangi sınava (TYT, AYT, LGS, YKS, KPSS, ALES, DGS, Okul Sınavı, Diğer), hangi derse (Matematik, Fizik, Kimya, Biyoloji, Türkçe, Tarih, Coğrafya, vb.) ve hangi konuya ait olduğunu belirle.
-          Sadece şu JSON formatında yanıt ver: {"isQuestion": true/false, "difficulty": 1/2/3/4, "examType": "Sınav Türü", "subject": "Ders Adı", "topic": "Konu Adı"}`
+          Ayrıca sorunun hangi sınava (sadece LGS, TYT veya AYT), hangi derse (Matematik, Fizik, Kimya, Biyoloji, Türkçe, Tarih, Coğrafya, vb.) ve hangi konuya ait olduğunu belirle.
+          Sadece şu JSON formatında yanıt ver: {"isQuestion": true/false, "difficulty": 1/2/3/4, "examType": "LGS/TYT/AYT", "subject": "Ders Adı", "topic": "Konu Adı"}`
         },
         { role: "user", content: text }
       ],

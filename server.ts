@@ -8,8 +8,7 @@ import { handleWhatsAppWebhook, verifyWhatsAppWebhook } from "./server/whatsappH
 
 async function startServer() {
   const app = express();
-  // Use process.env.PORT for Render, fallback to 3000 for local/AI Studio
-  const PORT = parseInt(process.env.PORT || "3000", 10);
+  const PORT = 3000;
 
   app.use(cors());
   app.use(express.json());

@@ -48,6 +48,20 @@ export interface UserItem {
   createdAt: string;
 }
 
+const MODEL_PRICING: Record<string, { input: number, output: number }> = {
+  'gpt-5.4': { input: 2.50, output: 15.00 },
+  'gpt-5.2': { input: 1.75, output: 14.00 },
+  'gpt-5.1': { input: 1.25, output: 10.00 },
+  'gpt-5': { input: 1.25, output: 10.00 },
+  'gpt-5-mini': { input: 0.25, output: 2.00 },
+  'gpt-5-nano': { input: 0.05, output: 0.40 },
+  'gpt-4o': { input: 2.50, output: 10.00 },
+  'gpt-4o-mini': { input: 0.15, output: 0.60 },
+  'gpt-4.1': { input: 2.00, output: 8.00 },
+  'gpt-4.1-mini': { input: 0.80, output: 3.20 },
+  'gpt-4.1-nano': { input: 0.20, output: 0.80 },
+};
+
 const formatDate = (dateValue: any): string => {
   if (!dateValue) return 'Bilinmiyor';
   
@@ -117,6 +131,16 @@ export const fetchAllQuestions = async (): Promise<QuestionHistoryItem[]> => {
       const data = doc.data();
       const formattedDate = formatDate(data.createdAt);
       
+      const model = data.model || 'gpt-4o';
+      let cost = data.cost || 0;
+      
+      if (cost === 0) {
+        const promptTokens = (data.questionText?.length || 0) / 4 + 500;
+        const completionTokens = (data.answerText?.length || 0) / 4;
+        const pricing = MODEL_PRICING[model] || MODEL_PRICING['gpt-4o'];
+        cost = (promptTokens / 1_000_000) * pricing.input + (completionTokens / 1_000_000) * pricing.output;
+      }
+
       return {
         id: doc.id,
         examType: data.examType || 'Genel',
@@ -130,8 +154,8 @@ export const fetchAllQuestions = async (): Promise<QuestionHistoryItem[]> => {
         questionText: data.questionText,
         answerText: data.answerText,
         uid: data.uid,
-        model: data.model || 'gpt-4o',
-        cost: data.cost || 0
+        model: model,
+        cost: cost
       };
     });
   } catch (error) {
@@ -153,6 +177,16 @@ export const fetchQuestionHistory = async (userId: string): Promise<QuestionHist
       const data = doc.data();
       const formattedDate = formatDate(data.createdAt);
       
+      const model = data.model || 'gpt-4o';
+      let cost = data.cost || 0;
+      
+      if (cost === 0) {
+        const promptTokens = (data.questionText?.length || 0) / 4 + 500;
+        const completionTokens = (data.answerText?.length || 0) / 4;
+        const pricing = MODEL_PRICING[model] || MODEL_PRICING['gpt-4o'];
+        cost = (promptTokens / 1_000_000) * pricing.input + (completionTokens / 1_000_000) * pricing.output;
+      }
+
       return {
         id: doc.id,
         examType: data.examType || 'Genel',
@@ -166,8 +200,8 @@ export const fetchQuestionHistory = async (userId: string): Promise<QuestionHist
         questionText: data.questionText,
         answerText: data.answerText,
         uid: data.uid,
-        model: data.model || 'gpt-4o',
-        cost: data.cost || 0
+        model: model,
+        cost: cost
       };
     });
   } catch (error) {
@@ -305,20 +339,6 @@ export const getTokenUsageStats = async () => {
     let costThisMonth = 0;
     
     const dailyData: Record<string, { tokens: number, cost: number }> = {};
-
-    const MODEL_PRICING: Record<string, { input: number, output: number }> = {
-      'gpt-5.4': { input: 2.50, output: 15.00 },
-      'gpt-5.2': { input: 1.75, output: 14.00 },
-      'gpt-5.1': { input: 1.25, output: 10.00 },
-      'gpt-5': { input: 1.25, output: 10.00 },
-      'gpt-5-mini': { input: 0.25, output: 2.00 },
-      'gpt-5-nano': { input: 0.05, output: 0.40 },
-      'gpt-4o': { input: 2.50, output: 10.00 },
-      'gpt-4o-mini': { input: 0.15, output: 0.60 },
-      'gpt-4.1': { input: 2.00, output: 8.00 },
-      'gpt-4.1-mini': { input: 0.80, output: 3.20 },
-      'gpt-4.1-nano': { input: 0.20, output: 0.80 },
-    };
 
     const todayStr = new Date().toISOString().split('T')[0];
     const thisMonthStr = todayStr.substring(0, 7);

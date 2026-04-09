@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx download-font.ts && tsx server.ts",
-    "start": "tsx download-font.ts && tsx server.ts",
-    "build": "vite build",
+    "start": "node dist-server/download-font.js && node dist-server/server.js",
+    "build": "vite build && npx esbuild server.ts download-font.ts --bundle --platform=node --target=node18 --format=esm --outdir=dist-server --packages=external",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
   },
