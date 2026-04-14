@@ -416,8 +416,8 @@ const AdminDashboard: React.FC = () => {
                   <tr>
                     <th className="px-4 py-3 rounded-tl-lg">ID</th>
                     <th className="px-4 py-3">Telefon</th>
-                    <th className="px-4 py-3">Kanal</th>
                     <th className="px-4 py-3">Soru</th>
+                    <th className="px-4 py-3">Zorluk</th>
                     <th className="px-4 py-3">Model</th>
                     <th className="px-4 py-3">Maliyet</th>
                     <th className="px-4 py-3">Zaman</th>
@@ -437,12 +437,12 @@ const AdminDashboard: React.FC = () => {
                       <tr key={q.id} className="hover:bg-slate-800/30 transition-colors">
                         <td className="px-4 py-3 font-mono text-xs text-slate-400">{q.id.substring(0, 8)}</td>
                         <td className="px-4 py-3">{phone}</td>
+                        <td className="px-4 py-3 truncate max-w-[150px]">{questionTitle}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${channel === 'WhatsApp' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                            {channel}
+                          <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${q.difficulty === 1 ? 'bg-green-500/10 text-green-400' : q.difficulty === 2 ? 'bg-blue-500/10 text-blue-400' : q.difficulty === 3 ? 'bg-orange-500/10 text-orange-400' : q.difficulty === 4 ? 'bg-red-500/10 text-red-400' : 'bg-slate-500/10 text-slate-400'}`}>
+                            {q.difficulty ? `Seviye ${q.difficulty}` : '-'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 truncate max-w-[150px]">{questionTitle}</td>
                         <td className="px-4 py-3 text-xs">{q.model || 'gpt-4o'}</td>
                         <td className="px-4 py-3 font-mono text-xs">${Number(q.cost || 0).toFixed(4)}</td>
                         <td className="px-4 py-3 text-xs text-slate-500">{q.date}</td>
@@ -468,8 +468,8 @@ const AdminDashboard: React.FC = () => {
                   <tr>
                     <th className="px-4 py-3 rounded-tl-lg">ID</th>
                     <th className="px-4 py-3">Telefon</th>
-                    <th className="px-4 py-3">Kanal</th>
                     <th className="px-4 py-3">Soru</th>
+                    <th className="px-4 py-3">Zorluk</th>
                     <th className="px-4 py-3">Model</th>
                     <th className="px-4 py-3">Maliyet</th>
                     <th className="px-4 py-3">Zaman</th>
@@ -492,12 +492,12 @@ const AdminDashboard: React.FC = () => {
                         <tr key={q.id} className="hover:bg-slate-800/30 transition-colors">
                           <td className="px-4 py-3 font-mono text-xs text-slate-400">{q.id.substring(0, 8)}</td>
                           <td className="px-4 py-3">{phone}</td>
+                          <td className="px-4 py-3 truncate max-w-[150px]">{questionTitle}</td>
                           <td className="px-4 py-3">
-                            <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${channel === 'WhatsApp' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                              {channel}
+                            <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md ${q.difficulty === 1 ? 'bg-green-500/10 text-green-400' : q.difficulty === 2 ? 'bg-blue-500/10 text-blue-400' : q.difficulty === 3 ? 'bg-orange-500/10 text-orange-400' : q.difficulty === 4 ? 'bg-red-500/10 text-red-400' : 'bg-slate-500/10 text-slate-400'}`}>
+                              {q.difficulty ? `Seviye ${q.difficulty}` : '-'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 truncate max-w-[150px]">{questionTitle}</td>
                           <td className="px-4 py-3 text-xs">{q.model || 'gpt-4o'}</td>
                           <td className="px-4 py-3 font-mono text-xs text-orange-400 font-bold">${Number(q.cost || 0).toFixed(4)}</td>
                           <td className="px-4 py-3 text-xs text-slate-500">{q.date}</td>

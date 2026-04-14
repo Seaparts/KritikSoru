@@ -24,6 +24,7 @@ export interface QuestionHistoryItem {
   uid?: string;
   model?: string;
   cost?: number;
+  difficulty?: number;
 }
 
 export interface PaymentHistoryItem {
@@ -156,7 +157,8 @@ export const fetchAllQuestions = async (): Promise<QuestionHistoryItem[]> => {
         answerText: data.answerText,
         uid: data.uid,
         model: model,
-        cost: cost
+        cost: cost,
+        difficulty: data.difficulty
       };
     });
   } catch (error) {
@@ -203,7 +205,8 @@ export const fetchQuestionHistory = async (userId: string): Promise<QuestionHist
         answerText: data.answerText,
         uid: data.uid,
         model: model,
-        cost: cost
+        cost: cost,
+        difficulty: data.difficulty
       };
     });
   } catch (error) {

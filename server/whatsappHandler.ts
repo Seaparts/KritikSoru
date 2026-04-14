@@ -791,6 +791,7 @@ async function processWhatsAppMessage(msg: any, baseUrl: string) {
       examType: analysis.examType,
       subject: analysis.subject,
       topic: analysis.topic,
+      difficulty: analysis.difficulty,
       createdAt: new Date().toISOString()
     });
 
