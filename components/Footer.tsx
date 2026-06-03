@@ -23,6 +23,8 @@ const Footer: React.FC = () => {
           <div>
             <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Platform</h4>
             <ul className="space-y-2">
+              <li><Link to="/net-arttir" className="text-sm text-slate-500 hover:text-blue-600">Net Arttır</Link></li>
+              <li><Link to="/ogrenme-modelimiz" className="text-sm text-slate-500 hover:text-blue-600">Öğrenme Modelimiz</Link></li>
               <li><Link to="/nasil-calisir" className="text-sm text-slate-500 hover:text-blue-600">Nasıl Çalışır?</Link></li>
               <li><Link to="/fiyatlandirma" className="text-sm text-slate-500 hover:text-blue-600">Çözüm Paketleri</Link></li>
               <li><Link to="/kayit" className="text-sm text-slate-500 hover:text-blue-600">Kayıt Ol</Link></li>

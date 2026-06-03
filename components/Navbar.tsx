@@ -26,6 +26,8 @@ const Navbar: React.FC = () => {
         
         {/* Desktop Menu */}
         <div className="hidden md:flex items-center space-x-8">
+          <Link to="/net-arttir" className="text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors">Net Arttır</Link>
+          <Link to="/ogrenme-modelimiz" className="text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors">Öğrenme Modelimiz</Link>
           <Link to="/nasil-calisir" className="text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors">Nasıl Çalışır?</Link>
           <Link to="/fiyatlandirma" className="text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors">Çözüm Paketleri</Link>
         </div>
@@ -79,6 +81,8 @@ const Navbar: React.FC = () => {
       {isMobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
           <div className="px-4 py-3 space-y-1">
+            <Link to="/net-arttir" className="block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-50" onClick={() => setIsMobileMenuOpen(false)}>Net Arttır</Link>
+            <Link to="/ogrenme-modelimiz" className="block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-50" onClick={() => setIsMobileMenuOpen(false)}>Öğrenme Modelimiz</Link>
             <Link to="/nasil-calisir" className="block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-50" onClick={() => setIsMobileMenuOpen(false)}>Nasıl Çalışır?</Link>
             <Link to="/fiyatlandirma" className="block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-50" onClick={() => setIsMobileMenuOpen(false)}>Çözüm Paketleri</Link>
             

@@ -6,6 +6,8 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import HowItWorks from './pages/HowItWorks';
+import NetArttir from './pages/NetArttir';
+import OgrenmeModelimiz from './pages/OgrenmeModelimiz';
 import Pricing from './pages/Pricing';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -49,6 +51,8 @@ const Layout: React.FC = () => {
       <main className="flex-grow flex flex-col">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/net-arttir" element={<NetArttir />} />
+          <Route path="/ogrenme-modelimiz" element={<OgrenmeModelimiz />} />
           <Route path="/nasil-calisir" element={<HowItWorks />} />
           <Route path="/fiyatlandirma" element={<Pricing />} />
           <Route path="/giris" element={<Login />} />
